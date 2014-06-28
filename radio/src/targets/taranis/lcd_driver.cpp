@@ -13,8 +13,50 @@
 
 #define	WriteData(x)	 AspiData(x)
 #define	WriteCommand(x)	 AspiCmd(x)
-#define CONTRAST_OFS     5
+#if defined(REVPLUS)
+#define CONTRAST_OFS 120
+#else
+#define CONTRAST_OFS 12
+#endif
 
+
+#if defined(REVPLUS)
+static void LCD_Init()
+{
+  AspiCmd(0x25);   //(5) Temperature compensation curve definition: 0x25 = -0.05%/oC
+	AspiCmd(0x2b);   //(6) Panel loading set ,Internal VLCD.
+  AspiCmd(0xEA);	 //(27) set bias=1/10
+  AspiCmd(0x81);	 //(11) Set Vop + next byte
+#if defined(BOOT)
+  AspiCmd(CONTRAST_OFS+25);
+#else
+  AspiCmd(CONTRAST_OFS+g_eeGeneral.contrast);
+#endif
+  AspiCmd(0xA6);	//inverse display off
+	AspiCmd(0xA1);	//line rates,24 Klps
+  AspiCmd(0x84);	//Disable Partial Display
+  AspiCmd(0xC8);	//SET N-LINE INVERSION
+  AspiCmd(0x00);	//Disable NIV
+  AspiCmd(0xF1);	//Set CEN
+  AspiCmd(0x3F);	// 1/64DUTY
+  AspiCmd(0xC0);	//(21) Set mapping
+  AspiCmd(0x04);	// MY=1, MX=0, MSF=0
+  AspiCmd(0x89);	//(15) WA=1,column (CA) increment (+1) first until CA reaches CA boundary, then RA will increment by (+1).
+  AspiCmd(0xF8);	//Set Window Program Enable  ,inside modle
+  AspiCmd(0xD0);	 //(23) SET 4 bits/pixel, pattern 0
+  AspiCmd(0xF4);   //starting column address of RAM program window.
+  AspiCmd(0x00);
+  AspiCmd(0xF5);   //starting row address of RAM program window.
+  AspiCmd(0x00);
+  AspiCmd(0xF6);   //ending column address of RAM program window.
+  AspiCmd(0xD3);
+  AspiCmd(0xF7);   //ending row address of RAM program window.
+  AspiCmd(0x3F);
+	AspiCmd(0xAF);	// Active and 16-grey scale
+}
+
+
+#else
 static void LCD_Init()
 {	
   AspiCmd(0x2b);   //Panel loading set ,Internal VLCD.
@@ -50,6 +92,7 @@ static void LCD_Init()
 
   
 }
+#endif
 
 #if 0 // to be removed later if nobody complains!
 static void lcdRefreshInit()
@@ -105,6 +148,40 @@ const uint8_t lcdPalette[4] = { 0, 0x03, 0x06, 0x0F };
   __no_operation(); \
   LCD_CLK_HIGH();
 
+#if defined(REVPLUS)
+void lcdRefresh()
+{  
+  for (uint32_t y=0; y<LCD_H; y+=2) {
+    uint8_t *p = &displayBuf[(y>>3)*LCD_W];
+    uint8_t mask = (1 << (y%8));
+
+    Set_Address(0, y/2);
+    AspiCmd(0xAF);
+
+    LCD_CLK_HIGH();
+    LCD_A0_HIGH();
+    LCD_NCS_LOW();
+
+    for (uint32_t x=0; x<LCD_W; x++) {
+      LCD_WRITE_BIT(p[3*DISPLAY_PLAN_SIZE+x] & mask);
+      LCD_WRITE_BIT(p[2*DISPLAY_PLAN_SIZE+x] & mask);
+      LCD_WRITE_BIT(p[DISPLAY_PLAN_SIZE+x] & mask);
+      LCD_WRITE_BIT(p[x] & mask);
+			mask <<= 1 ;
+      LCD_WRITE_BIT(p[3*DISPLAY_PLAN_SIZE+x] & mask);
+      LCD_WRITE_BIT(p[2*DISPLAY_PLAN_SIZE+x] & mask);
+      LCD_WRITE_BIT(p[DISPLAY_PLAN_SIZE+x] & mask);
+      LCD_WRITE_BIT(p[x] & mask);
+    }
+
+    LCD_NCS_HIGH();
+    LCD_A0_HIGH();
+
+    WriteData(0);
+  }
+}
+
+#else
 void lcdRefresh()
 {  
   for (uint32_t y=0; y<LCD_H; y++) {
@@ -131,6 +208,7 @@ void lcdRefresh()
     WriteData(0);
   }
 }
+#endif
 
 /**Init the Backlight GPIO */
 static void LCD_BL_Config()
