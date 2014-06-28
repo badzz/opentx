@@ -16,7 +16,7 @@
 #if defined(REVPLUS)
 #define CONTRAST_OFS 120
 #else
-#define CONTRAST_OFS 12
+#define CONTRAST_OFS 5
 #endif
 
 
