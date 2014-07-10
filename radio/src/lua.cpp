@@ -34,6 +34,7 @@
  *
  */
 
+#include <stdio.h>
 #include "opentx.h"
 #include "stamp-opentx.h"
 
