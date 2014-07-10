@@ -39,6 +39,16 @@
 
 #include <inttypes.h>
 
+#if defined(EXPORT)
+  #define LUA_EXPORT(...)                     LEXP(__VA_ARGS__)
+  #define LUA_EXPORT_MULTIPLE(...)            LEXP_MULTIPLE(__VA_ARGS__)
+  #define LUA_EXPORT_SCRIPT_OUTPUTS(...)      LEXP_SCRIPT_OUTPUTS(__VA_ARGS__)
+#else 
+  #define LUA_EXPORT(...)
+  #define LUA_EXPORT_MULTIPLE(...)
+  #define LUA_EXPORT_SCRIPT_OUTPUTS(...)
+#endif 
+
 #define WARN_THR_BIT  0x01
 #define WARN_BEP_BIT  0x80
 #define WARN_SW_BIT   0x02
@@ -1023,56 +1033,56 @@ PACK(typedef struct {
 
 enum TelemetrySource {
   TELEM_NONE,
-  TELEM_TX_VOLTAGE,
+  TELEM_TX_VOLTAGE,       LUA_EXPORT("tx-voltage", "Transmitter battery voltage [volts]", 10)
 #if defined(CPUARM)
-  TELEM_TX_TIME,
+  TELEM_TX_TIME,          LUA_EXPORT("time", "RTC clock [minutes from midnight]")
   TELEM_RESERVE1,
   TELEM_RESERVE2,
   TELEM_RESERVE3,
   TELEM_RESERVE4,
   TELEM_RESERVE5,
 #endif
-  TELEM_TIMER1,
-  TELEM_TIMER2,
+  TELEM_TIMER1,           LUA_EXPORT("timer1", "Timer 1 value [seconds]")
+  TELEM_TIMER2,           LUA_EXPORT("timer2", "Timer 2 value [seconds]")
 #if defined(CPUARM)
-  TELEM_SWR,
+  TELEM_SWR,              LUA_EXPORT("swr", "Transmitter antenna quality [less is better]")
 #endif
   TELEM_RSSI_TX,
-  TELEM_RSSI_RX,
+  TELEM_RSSI_RX,          LUA_EXPORT("rssi", "RSSI [more is better]")
 #if defined(CPUARM)
   TELEM_RESERVE0,
 #endif
   TELEM_A_FIRST,
-  TELEM_A1=TELEM_A_FIRST,
-  TELEM_A2,
+  TELEM_A1=TELEM_A_FIRST, LUA_EXPORT("a1", "A1 analogue value", 100, "applyChannelRatio")
+  TELEM_A2,               LUA_EXPORT("a2", "A2 analogue value", 100, "applyChannelRatio")
 #if !defined(CPUARM)
   TELEM_A_LAST=TELEM_A2,
 #else
-  TELEM_A3,
-  TELEM_A4,
+  TELEM_A3,               LUA_EXPORT("a3", "A3 analogue value", 100, "applyChannelRatio")
+  TELEM_A4,               LUA_EXPORT("a4", "A4 analogue value", 100, "applyChannelRatio")
   TELEM_A_LAST=TELEM_A4,
 #endif
-  TELEM_ALT,
-  TELEM_RPM,
-  TELEM_FUEL,
-  TELEM_T1,
-  TELEM_T2,
-  TELEM_SPEED,
-  TELEM_DIST,
-  TELEM_GPSALT,
-  TELEM_CELL,
-  TELEM_CELLS_SUM,
-  TELEM_VFAS,
-  TELEM_CURRENT,
-  TELEM_CONSUMPTION,
-  TELEM_POWER,
-  TELEM_ACCx,
-  TELEM_ACCy,
-  TELEM_ACCz,
-  TELEM_HDG,
-  TELEM_VSPEED,
-  TELEM_ASPEED,
-  TELEM_DTE,
+  TELEM_ALT,              LUA_EXPORT("alt", "Variometer altitude [meters]", 100)
+  TELEM_RPM,              LUA_EXPORT("rpm", "Rotational speed [revolutions per minute]")
+  TELEM_FUEL,             LUA_EXPORT("fuel", "Fuel level [???]")
+  TELEM_T1,               LUA_EXPORT("temp1", "Temperature 1 [degrees celsius]")
+  TELEM_T2,               LUA_EXPORT("temp2", "Temperature 2 [degrees celsius]")
+  TELEM_SPEED,            LUA_EXPORT("speed", "GPS speed [???]")
+  TELEM_DIST,             LUA_EXPORT("dist", "GPS distance [meters]")
+  TELEM_GPSALT,           LUA_EXPORT("galt", "GPS altitude [meters]")
+  TELEM_CELL,             LUA_EXPORT("cell", "LiPo sensor - lowest cell voltage [volts]", 100)
+  TELEM_CELLS_SUM,        LUA_EXPORT("cell-sum", "LiPo sensor - summ of all cell voltages [volts]", 10)
+  TELEM_VFAS,             LUA_EXPORT("vfas", "Current sensor - voltage [volts]", 10)
+  TELEM_CURRENT,          LUA_EXPORT("curr", "Current sensor - current [ampers]", 10)
+  TELEM_CONSUMPTION,      LUA_EXPORT("cnsp", "Current sensor - consumption [mili amper hours]")
+  TELEM_POWER,            LUA_EXPORT("pwr", "Current sensor - power [wats]")
+  TELEM_ACCx,             LUA_EXPORT("accx", "G sensor - acceleration in X axis [g]", 100)
+  TELEM_ACCy,             LUA_EXPORT("accy", "G sensor - acceleration in Y axis [g]", 100)
+  TELEM_ACCz,             LUA_EXPORT("accz", "G sensor - acceleration in Z axis [g]", 100)
+  TELEM_HDG,              LUA_EXPORT("hdg", "GPS heading [degrees]")
+  TELEM_VSPEED,           LUA_EXPORT("vspeed", "Variometer vertical speed [m/s]", 100)
+  TELEM_ASPEED,           LUA_EXPORT("aspeed", "Air speed [knots]", 10)
+  TELEM_DTE,              LUA_EXPORT("dte", "Total energy [???]")
 #if defined(CPUARM)
   TELEM_RESERVE6,
   TELEM_RESERVE7,
@@ -1081,7 +1091,7 @@ enum TelemetrySource {
   TELEM_RESERVE10,
 #endif
   TELEM_MIN_A_FIRST,
-  TELEM_MIN_A1=TELEM_MIN_A_FIRST,
+  TELEM_MIN_A1=TELEM_MIN_A_FIRST, LUA_EXPORT("a1", "A1 analogue value", 100, "applyChannelRatio")
   TELEM_MIN_A2,
 #if !defined(CPUARM)
   TELEM_MIN_A_LAST=TELEM_MIN_A2,
@@ -1446,25 +1456,25 @@ enum MixSources {
   MIXSRC_NONE,
 
 #if defined(PCBTARANIS)
-  MIXSRC_FIRST_INPUT,
+  MIXSRC_FIRST_INPUT,             LUA_EXPORT_MULTIPLE("[I%d]", "Input %d", 1, MAX_INPUTS)
   MIXSRC_LAST_INPUT = MIXSRC_FIRST_INPUT+MAX_INPUTS-1,
 
-  MIXSRC_FIRST_LUA,
+  MIXSRC_FIRST_LUA,               LUA_EXPORT_SCRIPT_OUTPUTS(MAX_SCRIPTS, MAX_SCRIPT_OUTPUTS)
   MIXSRC_LAST_LUA = MIXSRC_FIRST_LUA+(MAX_SCRIPTS*MAX_SCRIPT_OUTPUTS)-1,
 #endif
 
-  MIXSRC_Rud,
-  MIXSRC_Ele,
-  MIXSRC_Thr,
-  MIXSRC_Ail,
+  MIXSRC_Rud,                     LUA_EXPORT("Rud", "Rudder")
+  MIXSRC_Ele,                     LUA_EXPORT("ele", "Elevator")
+  MIXSRC_Thr,                     LUA_EXPORT("thr", "Throttle")
+  MIXSRC_Ail,                     LUA_EXPORT("ail", "Aileron")
 
   MIXSRC_FIRST_POT,
 #if defined(PCBTARANIS)
-  MIXSRC_POT1 = MIXSRC_FIRST_POT,
-  MIXSRC_POT2,
-  MIXSRC_POT3,
-  MIXSRC_SLIDER1,
-  MIXSRC_SLIDER2,
+  MIXSRC_POT1 = MIXSRC_FIRST_POT, LUA_EXPORT("s1", "Potentiometer 1")
+  MIXSRC_POT2,                    LUA_EXPORT("s2", "Potentiometer 2")
+  MIXSRC_POT3,                    LUA_EXPORT("s3", "Potentiometer 3")
+  MIXSRC_SLIDER1,                 LUA_EXPORT("ls", "Left slider")
+  MIXSRC_SLIDER2,                 LUA_EXPORT("rs", "Right slider")
   MIXSRC_LAST_POT = MIXSRC_SLIDER2,
 #else
   MIXSRC_P1 = MIXSRC_FIRST_POT,
@@ -1494,26 +1504,26 @@ enum MixSources {
 
   MIXSRC_MAX,
 
-  MIXSRC_CYC1,
-  MIXSRC_CYC2,
-  MIXSRC_CYC3,
+  MIXSRC_CYC1,                  LUA_EXPORT("cyc1", "Cyclic 1")
+  MIXSRC_CYC2,                  LUA_EXPORT("cyc2", "Cyclic 2")
+  MIXSRC_CYC3,                  LUA_EXPORT("cyc3", "Cyclic 3")
 
-  MIXSRC_TrimRud,
-  MIXSRC_TrimEle,
-  MIXSRC_TrimThr,
-  MIXSRC_TrimAil,
+  MIXSRC_TrimRud,               LUA_EXPORT("trmr", "Rudder trim")
+  MIXSRC_TrimEle,               LUA_EXPORT("trme", "Elevator trim")
+  MIXSRC_TrimThr,               LUA_EXPORT("trmt", "Throttle trim")
+  MIXSRC_TrimAil,               LUA_EXPORT("trma", "Aileron trim")
 
   MIXSRC_FIRST_SWITCH,
 
 #if defined(PCBTARANIS)
-  MIXSRC_SA = MIXSRC_FIRST_SWITCH,
-  MIXSRC_SB,
-  MIXSRC_SC,
-  MIXSRC_SD,
-  MIXSRC_SE,
-  MIXSRC_SF,
-  MIXSRC_SG,
-  MIXSRC_SH,
+  MIXSRC_SA = MIXSRC_FIRST_SWITCH,  LUA_EXPORT("sa", "Switch A")
+  MIXSRC_SB,                        LUA_EXPORT("sb", "Switch B")
+  MIXSRC_SC,                        LUA_EXPORT("sc", "Switch C")
+  MIXSRC_SD,                        LUA_EXPORT("sd", "Switch D")
+  MIXSRC_SE,                        LUA_EXPORT("se", "Switch E")
+  MIXSRC_SF,                        LUA_EXPORT("sf", "Switch F")
+  MIXSRC_SG,                        LUA_EXPORT("sg", "Switch G")
+  MIXSRC_SH,                        LUA_EXPORT("sh", "Switch H")
 #else
   MIXSRC_3POS = MIXSRC_FIRST_SWITCH,
   #if defined(EXTRA_3POS)
@@ -1527,18 +1537,18 @@ enum MixSources {
   MIXSRC_TRN,
 #endif
   MIXSRC_FIRST_LOGICAL_SWITCH,
-  MIXSRC_SW1 = MIXSRC_FIRST_LOGICAL_SWITCH,
+  MIXSRC_SW1 = MIXSRC_FIRST_LOGICAL_SWITCH, LUA_EXPORT_MULTIPLE("ls%d", "Logical switch %d", 1, NUM_LOGICAL_SWITCH)
   MIXSRC_SW9 = MIXSRC_SW1 + 8,
   MIXSRC_SWA,
   MIXSRC_SWB,
   MIXSRC_SWC,
   MIXSRC_LAST_LOGICAL_SWITCH = MIXSRC_FIRST_LOGICAL_SWITCH+NUM_LOGICAL_SWITCH-1,
 
-  MIXSRC_FIRST_TRAINER,
+  MIXSRC_FIRST_TRAINER,                     LUA_EXPORT_MULTIPLE("trn%d", "Trainer input %d", 1, NUM_TRAINER)
   MIXSRC_LAST_TRAINER = MIXSRC_FIRST_TRAINER+NUM_TRAINER-1,
 
   MIXSRC_FIRST_CH,
-  MIXSRC_CH1 = MIXSRC_FIRST_CH,
+  MIXSRC_CH1 = MIXSRC_FIRST_CH,             LUA_EXPORT_MULTIPLE("ch%d", "Channel %d", 1, NUM_CHNOUT)
   MIXSRC_CH2,
   MIXSRC_CH3,
   MIXSRC_CH4,
@@ -1556,7 +1566,7 @@ enum MixSources {
   MIXSRC_CH16,
   MIXSRC_LAST_CH = MIXSRC_CH1+NUM_CHNOUT-1,
 
-  MIXSRC_GVAR1,
+  MIXSRC_GVAR1,                             LUA_EXPORT_MULTIPLE("gvar%d", "Global variable %d", 1, MAX_GVARS)
   MIXSRC_LAST_GVAR = MIXSRC_GVAR1+MAX_GVARS-1,
 
   MIXSRC_FIRST_TELEM,

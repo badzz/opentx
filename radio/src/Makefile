@@ -1491,3 +1491,10 @@ GTEST_TESTS_SRCS = $(shell find tests/ -type f -name '*.cpp')
 
 gtests: $(BOARDSRC) $(CPPSRC) $(GTEST_TESTS_SRCS) targets/simu/simpgmspace.cpp *.h gtest_main.a
 	g++ -std=gnu++0x $(CPPFLAGS) $(BOARDSRC) $(CPPSRC) $(GTEST_TESTS_SRCS) targets/simu/simpgmspace.cpp -I$(GTEST_DIR) ${INCFLAGS} -I$(GTEST_DIR)/include -o gtests -lpthread -MD -DSIMU -lQtCore -lQtGui gtest_main.a 
+
+
+lexp:
+	@echo "Generating a list of Lua exported constants in lua_exports.txt" 
+	@cpp -DPCBTARANIS -DCPUARM -DEXPORT  myeeprom.h | grep LEXP > lua_exports.txt
+	@echo "Parsing and generating C Lua exports in lua_exports.cpp"
+	python ../util/luaexport.py lua_exports.txt lua_exports.cpp
