@@ -163,23 +163,19 @@ struct LuaMultipleField {
   uint8_t end;
 };
 
-// const LuaField luaFields[] = {
-//   { "altitude-max", MIXSRC_FIRST_TELEM+TELEM_MAX_ALT-1, 0 },
-//   { "altitude", MIXSRC_FIRST_TELEM+TELEM_ALT-1, PREC2 },
-//   { "vario", MIXSRC_FIRST_TELEM+TELEM_VSPEED-1, PREC2 },
-//   { "tx-voltage", MIXSRC_FIRST_TELEM+TELEM_TX_VOLTAGE-1, PREC1 },
-//   { "rpm", MIXSRC_FIRST_TELEM+TELEM_RPM-1, 0 },
-//   { NULL, 0, 0 },
-// };
 #include "lua_exports.cpp"
 
+//theese are used when returning fields that are defined as multiples
 static char foundName[10];
 static char foundDesc[100];
 static LuaField foundField = {0, foundName, foundDesc};
+
 /**
-  Return id for given eport name
+  Return filed data for a given field name
+
+  Note: function is non-reentrant
 */
-const LuaField * luaFindExportByName(const char * name)
+const LuaField * luaFindFieldByName(const char * name)
 {
   // TODO better search method (binary lookup)
   for(int n = 0; n < (int)DIM(luaFields); ++n) {
@@ -192,7 +188,7 @@ const LuaField * luaFindExportByName(const char * name)
     for(int i = luaMultipleFields[n].start; i < luaMultipleFields[n].end; i++){
       //char buf[10];
       sprintf(foundName, luaMultipleFields[n].name, i);
-      // TRACE("luaFindExportByName(): %s", foundName);
+      // TRACE("luaFindFieldByName(): %s", foundName);
       if (!strcmp(name, foundName)) {
         sprintf(foundDesc, luaMultipleFields[n].desc, i);
         foundField.id = luaMultipleFields[n].id+i-1;
@@ -200,61 +196,79 @@ const LuaField * luaFindExportByName(const char * name)
       }
     }
   }
+  // search in lua script outputs
+  // TODO
   return 0;  // not found
 }
 
-// get a constant values for one or more constants
-static int luaGetSources(lua_State *L)
+/**
+  Return filed data for a given field id
+
+  Note: function is non-reentrant
+*/
+const LuaField * luaFindFieldById(int id)
 {
-  /* get number of arguments */
+  for(int n = 0; n < (int)DIM(luaFields); ++n) {
+    if (id == luaFields[n].id) {
+      return &luaFields[n];
+    }
+  }
+  //search in multiples
+  for(int n = 0; n < (int)DIM(luaMultipleFields); ++n) {
+    if ((id >= luaMultipleFields[n].id) && (id <= luaMultipleFields[n].id+luaMultipleFields[n].end-luaMultipleFields[n].start)) {
+      int i = id - luaMultipleFields[n].id + luaMultipleFields[n].start;
+      sprintf(foundName, luaMultipleFields[n].name, i);  
+      sprintf(foundDesc, luaMultipleFields[n].desc, i);
+      foundField.id = id;
+      return &foundField;
+    }
+  }
+  // search in lua script outputs
+  // TODO
+  return 0;  // not found
+}
+
+// TODO this could be removed and luaGetFieldInfo() used instead
+// get a filed ids for one or more fields
+static int luaGetFields(lua_State *L)
+{
+  // get number of arguments
   int n = lua_gettop(L);
-  /* loop through each argument */
+  // return requested filed ids as multiple return values
   for (int i = 1; i <= n; i++)
   {
-    /* total the arguments */
     const char * what = luaL_checkstring(L, i);
-    TRACE("luaGetSources(): %s", what);
-    const LuaField * field = luaFindExportByName(what);
+    TRACE("luaGetFields(): %s", what);
+    const LuaField * field = luaFindFieldByName(what);
     if (field) {
       lua_pushinteger(L, field->id);
     }
     else {
-      lua_pushinteger(L, 0);
+      lua_pushnil(L);
     }
-
   }
-  // const char * what = luaL_checkstring(L, 1);
-  // TRACE("luaGetSources(): %s", what);
-  // int src = luaFindExportByName(what);
-  // lua_pushinteger(L, src);
   return n;
 }
 
-// get the list of all available constants
-static int luaGetAvailableSources(lua_State *L)
+//get a detailed info about particular field
+static int luaGetFieldInfo(lua_State *L)
 {
-  //TRACE("luaGetSources(): %s", what);
-  lua_newtable(L);
-  for(int n = 0; n < (int)DIM(luaFields); ++n) {
-    // TRACE("luaGetAvailableSources(): %s", luaFields[n].name);
-    lua_pushnumber(L, n+1), lua_pushstring(L, luaFields[n].name), lua_settable(L, -3);
+  const LuaField * field;
+  if (lua_isnumber(L, 1)) {
+    int id = luaL_checkinteger(L, 1);
+    // TRACE("luaGetFieldInfo(): int %d", id);
+    field = luaFindFieldById(id);
   }
-  return 1;
-}
-
-//get a detailed info about particular constant.
-static int luaGetSourceInfo(lua_State *L)
-{
-  int src = luaL_checkinteger(L, 1);
-  TRACE("luaGetSourceInfo(): %d", src);
-  const char * what = luaL_checkstring(L, 1);
-  TRACE("luaGetSources(): %s", what);
-  const LuaField * field = luaFindExportByName(what);
+  else {
+    const char * what = luaL_checkstring(L, 1);
+    // TRACE("luaGetFieldInfo(): str %s", what);
+    field = luaFindFieldByName(what);
+  }
   if (field) {
     lua_newtable(L);
     lua_pushtableinteger(L, "id", field->id);
-    lua_pushtablestring(L, "name", field->name);
-    lua_pushtablestring(L, "desc", field->desc);
+    lua_pushstring(L, "name"); lua_pushstring(L, field->name); lua_settable(L, -3);
+    lua_pushstring(L, "desc"); lua_pushstring(L, field->desc); lua_settable(L, -3);
     return 1;
   }
   return 0;
@@ -269,24 +283,13 @@ static int luaGetValue(lua_State *L)
   }
   else {
     const char *what = luaL_checkstring(L, 1);
-    const LuaField * field = luaFindExportByName(what);
+    const LuaField * field = luaFindFieldByName(what);
     if (field) {
-      TRACE("luaGetValue(): %d", field->id);
+      // TRACE("luaGetValue(): %d", field->id);
+      // scaling and transformatinon handled by luaGetValueAndPush()
       luaGetValueAndPush(field->id);
       return 1;
     }
-    // for (const LuaField * field = &luaFields[0]; field->name; field++) {
-    //   if (!strcmp(what, field->name)) {
-    //     getvalue_t value = getValue(field->id);
-    //     if (field->attr == PREC1)
-    //       lua_pushnumber(L, double(value)/10);
-    //     else if (field->attr == PREC2)
-    //       lua_pushnumber(L, double(value)/100);
-    //     else
-    //       lua_pushnumber(L, value);
-    //     return 1;
-    //   }
-    // }
     if (frskyData.hub.gpsFix) {
       if (!strcmp(what, "latitude")) {
         lua_pushnumber(L, gpsToDouble(frskyData.hub.gpsLatitudeNS=='S', frskyData.hub.gpsLatitude_bp, frskyData.hub.gpsLatitude_ap));
@@ -1286,9 +1289,8 @@ void luaInit()
   lua_register(L, "getVersion", luaGetVersion);
   lua_register(L, "getGeneralSettings", luaGetGeneralSettings);
   lua_register(L, "getValue", luaGetValue);
-  lua_register(L, "getSources", luaGetSources);
-  lua_register(L, "getAvailableSources", luaGetAvailableSources);
-  lua_register(L, "getSourceInfo", luaGetSourceInfo);  
+  lua_register(L, "getFields", luaGetFields);
+  lua_register(L, "getFieldInfo", luaGetFieldInfo);  
 
   lua_register(L, "playFile", luaPlayFile);
   lua_register(L, "playNumber", luaPlayNumber);
