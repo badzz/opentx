@@ -106,6 +106,7 @@ static void luaGetValueAndPush(int src)
     lua_pushinteger(L, (int)0);
     return;
   }
+  int idx = src;
   switch (src) {
     case MIXSRC_FIRST_TELEM-1+TELEM_TX_VOLTAGE:
     case MIXSRC_FIRST_TELEM-1+TELEM_VFAS:
@@ -114,21 +115,24 @@ static void luaGetValueAndPush(int src)
     case MIXSRC_FIRST_TELEM-1+TELEM_MIN_CELLS_SUM:
     case MIXSRC_FIRST_TELEM-1+TELEM_CURRENT:
     case MIXSRC_FIRST_TELEM-1+TELEM_MAX_CURRENT:
-    case MIXSRC_FIRST_TELEM-1+TELEM_VSPEED:
+    case MIXSRC_FIRST_TELEM-1+TELEM_ASPEED:
       //theese need to be divided by 10
       lua_pushnumber(L, getValue(src)/10.0);
       break;
 
-    case MIXSRC_FIRST_TELEM-1+TELEM_A1:
-    case MIXSRC_FIRST_TELEM-1+TELEM_A2:
-      //convert raw A1/2 values to calibrated values
-      lua_pushnumber(L, applyChannelRatio(src-(MIXSRC_FIRST_TELEM-1+TELEM_A1), getValue(src))/100.0);
-      break;
-
     case MIXSRC_FIRST_TELEM-1+TELEM_MIN_A1:
     case MIXSRC_FIRST_TELEM-1+TELEM_MIN_A2:
-      //convert raw A1/2 values to calibrated values
-      lua_pushnumber(L, applyChannelRatio(src-(MIXSRC_FIRST_TELEM-1+TELEM_MIN_A1), getValue(src))/100.0);
+    case MIXSRC_FIRST_TELEM-1+TELEM_MIN_A3:
+    case MIXSRC_FIRST_TELEM-1+TELEM_MIN_A4:
+      idx -= TELEM_MIN_A1-TELEM_A1;
+      // no break
+    case MIXSRC_FIRST_TELEM-1+TELEM_A1:
+    case MIXSRC_FIRST_TELEM-1+TELEM_A2:
+    case MIXSRC_FIRST_TELEM-1+TELEM_A3:
+    case MIXSRC_FIRST_TELEM-1+TELEM_A4:
+      //convert raw Ax values to calibrated values
+      idx -= (MIXSRC_FIRST_TELEM+TELEM_A1-1);
+      lua_pushnumber(L, applyChannelRatio(idx, getValue(src))/100.0);
       break;
 
     case MIXSRC_FIRST_TELEM-1+TELEM_CELL:
@@ -137,6 +141,7 @@ static void luaGetValueAndPush(int src)
     case MIXSRC_FIRST_TELEM-1+TELEM_ACCx:
     case MIXSRC_FIRST_TELEM-1+TELEM_ACCy:
     case MIXSRC_FIRST_TELEM-1+TELEM_ACCz:
+    case MIXSRC_FIRST_TELEM-1+TELEM_VSPEED:
       //theese need to be divided by 100
       lua_pushnumber(L, getValue(src)/100.0);
       break;
