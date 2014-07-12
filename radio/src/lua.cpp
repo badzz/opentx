@@ -154,14 +154,14 @@ static void luaGetValueAndPush(int src)
 }
 
 struct LuaField {
-  uint8_t id;
+  uint16_t id;
   const char * name;
   const char * desc;
   //const uint8_t attr;
 };
 
 struct LuaMultipleField {
-  uint8_t id;
+  uint16_t id;
   const char * name;
   const char * desc;
   uint8_t start;
@@ -281,40 +281,25 @@ static int luaGetFieldInfo(lua_State *L)
 
 static int luaGetValue(lua_State *L)
 {
+  int src = 0;
   if (lua_isnumber(L, 1)) {
-    int src = luaL_checkinteger(L, 1);
-    luaGetValueAndPush(src);
-    return 1;
+    src = luaL_checkinteger(L, 1);
   }
   else {
-    const char *what = luaL_checkstring(L, 1);
-    const LuaField * field = luaFindFieldByName(what);
+    // convert from filed name to its id
+    const char *name = luaL_checkstring(L, 1);
+    const LuaField * field = luaFindFieldByName(name);
     if (field) {
       // TRACE("luaGetValue(): %d", field->id);
-      // scaling and transformatinon handled by luaGetValueAndPush()
-      luaGetValueAndPush(field->id);
-      return 1;
-    }
-    if (frskyData.hub.gpsFix) {
-      if (!strcmp(what, "latitude")) {
-        lua_pushnumber(L, gpsToDouble(frskyData.hub.gpsLatitudeNS=='S', frskyData.hub.gpsLatitude_bp, frskyData.hub.gpsLatitude_ap));
-        return 1;
-      }
-      else if (!strcmp(what, "longitude")) {
-        lua_pushnumber(L, gpsToDouble(frskyData.hub.gpsLongitudeEW=='W', frskyData.hub.gpsLongitude_bp, frskyData.hub.gpsLongitude_ap));
-        return 1;
-      }
-      else if (!strcmp(what, "pilot-latitude")) {
-        lua_pushnumber(L, pilotLatitude);
-        return 1;
-      }
-      else if (!strcmp(what, "pilot-longitude")) {
-        lua_pushnumber(L, pilotLongitude);
-        return 1;
-      }
+      src = field->id;
     }
   }
-  return 0;
+  if (src >= EXTRA_FIRST ) {
+    // one of the extra fields
+    return luaGetExtraValue(src);
+  }
+  luaGetValueAndPush(src);
+  return 1;
 }
 
 static int luaPlayFile(lua_State *L)

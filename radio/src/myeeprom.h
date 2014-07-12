@@ -44,11 +44,13 @@
   #define LUA_EXPORT_TELEMETRY(...)           LEXP_TELEMETRY(__VA_ARGS__)
   #define LUA_EXPORT_MULTIPLE(...)            LEXP_MULTIPLE(__VA_ARGS__)
   #define LUA_EXPORT_SCRIPT_OUTPUTS(...)      LEXP_SCRIPT_OUTPUTS(__VA_ARGS__)
+  #define LUA_EXPORT_EXTRA(...)               LEXP_EXTRA(__VA_ARGS__)
 #else 
   #define LUA_EXPORT(...)
   #define LUA_EXPORT_TELEMETRY(...)
   #define LUA_EXPORT_MULTIPLE(...)
   #define LUA_EXPORT_SCRIPT_OUTPUTS(...)
+  #define LUA_EXPORT_EXTRA(...)
 #endif 
 
 #define WARN_THR_BIT  0x01
@@ -1575,6 +1577,22 @@ enum MixSources {
   MIXSRC_FIRST_TELEM,
   MIXSRC_LAST_TELEM = MIXSRC_FIRST_TELEM+NUM_TELEMETRY-1
 };
+
+#if defined(LUA)
+#define EXTRA_FIRST 1000
+enum LuaExtraFields {
+  EXTRA_LATITUDE = EXTRA_FIRST, LUA_EXPORT_EXTRA("latitude", "GPS latitude [degrees, North is positive]", \
+                                                 "gpsToDouble(frskyData.hub.gpsLatitudeNS=='S', frskyData.hub.gpsLatitude_bp, frskyData.hub.gpsLatitude_ap)", \
+                                                 "frskyData.hub.gpsFix")
+  EXTRA_LONGITUDE,              LUA_EXPORT_EXTRA("longitude", "GPS longitude [degrees, East is positive]", \
+                                                 "gpsToDouble(frskyData.hub.gpsLongitudeEW=='W', frskyData.hub.gpsLongitude_bp, frskyData.hub.gpsLongitude_ap)", \
+                                                 "frskyData.hub.gpsFix")
+  EXTRA_PILOT_LATITUDE,         LUA_EXPORT_EXTRA("pilot-latitude", "Latitude of frist GPS position [degrees, North is positive]", \
+                                                 "pilotLatitude", "frskyData.hub.gpsFix")
+  EXTRA_PILOT_LONGITUDE,        LUA_EXPORT_EXTRA("pilot-longitude", "Longitude of frist GPS position [degrees, East is positive]", \
+                                                 "pilotLongitude", "frskyData.hub.gpsFix")
+};
+#endif // #if defined(LUA)
 
 #define MIXSRC_FIRST   (MIXSRC_NONE+1)
 #define MIXSRC_LAST    MIXSRC_LAST_CH

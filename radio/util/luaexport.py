@@ -15,7 +15,8 @@ dups_cnst = []
 dups_name = []
 exports = []
 exports_multiple = []
-exports_script_outputs = None
+exports_script_outputs = []
+exports_extra = []
 
 warning = None
 error = None
@@ -37,7 +38,7 @@ def LEXP(name, description):
   exports.append( (CONSTANT_VALUE, name, description) )
 
 def LEXP_TELEMETRY(name, description):
-  # print "LEXP %s, %s, %s, %s" % (name, description)
+  # print "LEXP %s, %s" % (name, description)
   checkName(name)
   exports.append( ("MIXSRC_FIRST_TELEM-1+"+CONSTANT_VALUE, name, description) )
 
@@ -53,6 +54,13 @@ def LEXP_MULTIPLE(nameFormat, descriptionFormat, firstValue, numOfValues):
 
 def LEXP_SCRIPT_OUTPUTS(noScripts, noOutputsPerScript):
   print "LEXP_SCRIPT_OUTPUTS %s, %s" % (noScripts, noOutputsPerScript)
+
+def LEXP_EXTRA(name, description, value, condition = "true"):
+  # print "LEXP_EXTRA %s, %s, %s, %s" % (name, description, value, condition)
+  checkName(name)
+  exports_extra.append( (CONSTANT_VALUE, name, description, value, condition) )
+  # extra also added to normal items to enable searching
+  exports.append( (CONSTANT_VALUE, name, description) )
 
 
 inputFile = sys.argv[1]
@@ -104,7 +112,7 @@ out.write("// The list of Lua fields\n")
 out.write("// this aray is alphabetically sorted by the second field (name)\n")
 out.write("const LuaField luaFields[] = { \n")
 exports.sort(key = lambda x: x[1])  #sort by name
-data = ["  {%s, \"%s\", \"%s\"}" % (cnst, name, desc) for (cnst, name, desc) in exports]
+data = ["  {%s, \"%s\", \"%s\"}" % export for export in exports]
 out.write(",\n".join(data))
 out.write("\n};\n\n")
 print "Generated %d items in luaFields[]" % len(exports)
@@ -115,6 +123,27 @@ data = ["  {%s, \"%s\", \"%s\", %d, %d}" % export for export in exports_multiple
 out.write(",\n".join(data))
 out.write("\n};\n\n")
 print "Generated %d items in luaMultipleFields[]" % len(exports_multiple)
+
+#code generation for extra fields
+case = """    case %s:
+      if (%s) {
+        lua_pushnumber(L, %s);
+        return 1;
+      }
+      break;"""
+case_clauses = [case % (cnst, condition, value) for (cnst, name, description, value, condition) in exports_extra]
+case_body = "\n".join(case_clauses)
+func_body = """static int luaGetExtraValue(int src)
+{
+  switch (src) {
+%s
+  }
+  return 0;
+}
+
+""" % case_body
+out.write(func_body)
+print "Generated %d condtions in luaGetExtraValue()" % len(exports_extra)
 
 
 out.close()
