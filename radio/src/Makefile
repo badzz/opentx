@@ -1417,6 +1417,7 @@ clean_list :
 	$(REMOVE) allsrc.cpp
 	$(REMOVE) stamp-opentx.h
 	$(REMOVE) `find . -name "*.lbm"` 
+	$(REMOVE) lua_exports.txt lua_exports.cpp
 	$(MAKE) -C bootloader clean
 
 #### Install
