@@ -1037,56 +1037,56 @@ PACK(typedef struct {
 
 enum TelemetrySource {
   TELEM_NONE,
-  TELEM_TX_VOLTAGE,       LUA_EXPORT_TELEMETRY("tx-voltage", "Transmitter battery voltage [volts]")
+  TELEM_TX_VOLTAGE,               LUA_EXPORT_TELEMETRY("tx-voltage", "Transmitter battery voltage [volts]")
 #if defined(CPUARM)
-  TELEM_TX_TIME,          LUA_EXPORT_TELEMETRY("time", "RTC clock [minutes from midnight]")
+  TELEM_TX_TIME,                  LUA_EXPORT_TELEMETRY("clock", "RTC clock [minutes from midnight]")
   TELEM_RESERVE1,
   TELEM_RESERVE2,
   TELEM_RESERVE3,
   TELEM_RESERVE4,
   TELEM_RESERVE5,
 #endif
-  TELEM_TIMER1,           LUA_EXPORT_TELEMETRY("timer1", "Timer 1 value [seconds]")
-  TELEM_TIMER2,           LUA_EXPORT_TELEMETRY("timer2", "Timer 2 value [seconds]")
-#if defined(CPUARM)
-  TELEM_SWR,              LUA_EXPORT_TELEMETRY("swr", "Transmitter antenna quality [less is better]")
-#endif
-  TELEM_RSSI_TX,
-  TELEM_RSSI_RX,          LUA_EXPORT_TELEMETRY("rssi", "RSSI [more is better]")
-#if defined(CPUARM)
-  TELEM_RESERVE0,
-#endif
-  TELEM_A_FIRST,
-  TELEM_A1=TELEM_A_FIRST, LUA_EXPORT_TELEMETRY("a1", "A1 analogue value")
-  TELEM_A2,               LUA_EXPORT_TELEMETRY("a2", "A2 analogue value")
-#if !defined(CPUARM)
-  TELEM_A_LAST=TELEM_A2,
-#else
-  TELEM_A3,               LUA_EXPORT_TELEMETRY("a3", "A3 analogue value")
-  TELEM_A4,               LUA_EXPORT_TELEMETRY("a4", "A4 analogue value")
-  TELEM_A_LAST=TELEM_A4,
-#endif
-  TELEM_ALT,              LUA_EXPORT_TELEMETRY("alt", "Variometer altitude [meters]")
-  TELEM_RPM,              LUA_EXPORT_TELEMETRY("rpm", "Rotational speed [revolutions per minute]")
-  TELEM_FUEL,             LUA_EXPORT_TELEMETRY("fuel", "Fuel level [???]")
-  TELEM_T1,               LUA_EXPORT_TELEMETRY("temp1", "Temperature 1 [degrees celsius]")
-  TELEM_T2,               LUA_EXPORT_TELEMETRY("temp2", "Temperature 2 [degrees celsius]")
-  TELEM_SPEED,            LUA_EXPORT_TELEMETRY("speed", "GPS speed [???]")
-  TELEM_DIST,             LUA_EXPORT_TELEMETRY("dist", "GPS distance [meters]")
-  TELEM_GPSALT,           LUA_EXPORT_TELEMETRY("galt", "GPS altitude [meters]")
-  TELEM_CELL,             LUA_EXPORT_TELEMETRY("cell", "LiPo sensor - lowest cell voltage [volts]")
-  TELEM_CELLS_SUM,        LUA_EXPORT_TELEMETRY("cell-sum", "LiPo sensor - summ of all cell voltages [volts]")
-  TELEM_VFAS,             LUA_EXPORT_TELEMETRY("vfas", "Current sensor - voltage [volts]")
-  TELEM_CURRENT,          LUA_EXPORT_TELEMETRY("curr", "Current sensor - current [ampers]")
-  TELEM_CONSUMPTION,      LUA_EXPORT_TELEMETRY("cnsp", "Current sensor - consumption [mili amper hours]")
-  TELEM_POWER,            LUA_EXPORT_TELEMETRY("pwr", "Current sensor - power [wats]")
-  TELEM_ACCx,             LUA_EXPORT_TELEMETRY("accx", "G sensor - acceleration in X axis [g]")
-  TELEM_ACCy,             LUA_EXPORT_TELEMETRY("accy", "G sensor - acceleration in Y axis [g]")
-  TELEM_ACCz,             LUA_EXPORT_TELEMETRY("accz", "G sensor - acceleration in Z axis [g]")
-  TELEM_HDG,              LUA_EXPORT_TELEMETRY("hdg", "GPS heading [degrees]")
-  TELEM_VSPEED,           LUA_EXPORT_TELEMETRY("vspeed", "Variometer vertical speed [m/s]")
-  TELEM_ASPEED,           LUA_EXPORT_TELEMETRY("aspeed", "Air speed [knots]")
-  TELEM_DTE,              LUA_EXPORT_TELEMETRY("dte", "Total energy [???]")
+  TELEM_TIMER1,                   LUA_EXPORT_TELEMETRY("timer1", "Timer 1 value [seconds]")
+  TELEM_TIMER2,                   LUA_EXPORT_TELEMETRY("timer2", "Timer 2 value [seconds]")
+#if defined(CPUARM)       
+  TELEM_SWR,                      LUA_EXPORT_TELEMETRY("swr", "Transmitter antenna quality [less is better]")
+#endif        
+  TELEM_RSSI_TX,        
+  TELEM_RSSI_RX,                  LUA_EXPORT_TELEMETRY("rssi", "RSSI [more is better]")
+#if defined(CPUARM)       
+  TELEM_RESERVE0,       
+#endif        
+  TELEM_A_FIRST,        
+  TELEM_A1=TELEM_A_FIRST,         LUA_EXPORT_TELEMETRY("a1", "A1 analogue value [units as configured]")
+  TELEM_A2,                       LUA_EXPORT_TELEMETRY("a2", "A2 analogue value [units as configured]")
+#if !defined(CPUARM)        
+  TELEM_A_LAST=TELEM_A2,        
+#else       
+  TELEM_A3,                       LUA_EXPORT_TELEMETRY("a3", "A3 analogue value [units as configured]")
+  TELEM_A4,                       LUA_EXPORT_TELEMETRY("a4", "A4 analogue value [units as configured]")
+  TELEM_A_LAST=TELEM_A4,        
+#endif        
+  TELEM_ALT,                      LUA_EXPORT_TELEMETRY("altitude", "Variometer altitude [meters]")
+  TELEM_RPM,                      LUA_EXPORT_TELEMETRY("rpm", "Rotational speed [revolutions per minute]")
+  TELEM_FUEL,                     LUA_EXPORT_TELEMETRY("fuel", "Fuel level [???]")
+  TELEM_T1,                       LUA_EXPORT_TELEMETRY("temp1", "Temperature 1 [degrees celsius]")
+  TELEM_T2,                       LUA_EXPORT_TELEMETRY("temp2", "Temperature 2 [degrees celsius]")
+  TELEM_SPEED,                    LUA_EXPORT_TELEMETRY("gps-speed", "GPS speed [???]")
+  TELEM_DIST,                     LUA_EXPORT_TELEMETRY("distance", "GPS distance [meters]")
+  TELEM_GPSALT,                   LUA_EXPORT_TELEMETRY("gps-altitude", "GPS altitude [meters]")
+  TELEM_CELL,                     LUA_EXPORT_TELEMETRY("cell-min", "LiPo sensor - lowest current cell voltage [volts]")
+  TELEM_CELLS_SUM,                LUA_EXPORT_TELEMETRY("cell-sum", "LiPo sensor - current summ of all cell voltages [volts]")
+  TELEM_VFAS,                     LUA_EXPORT_TELEMETRY("vfas", "Current sensor - voltage [volts]")
+  TELEM_CURRENT,                  LUA_EXPORT_TELEMETRY("currentent", "Current sensor - current [ampers]")
+  TELEM_CONSUMPTION,              LUA_EXPORT_TELEMETRY("consumption", "Current sensor - consumption [mili amper hours]")
+  TELEM_POWER,                    LUA_EXPORT_TELEMETRY("power", "Current sensor - power [wats]")
+  TELEM_ACCx,                     LUA_EXPORT_TELEMETRY("accx", "G sensor - acceleration in X axis [g]")
+  TELEM_ACCy,                     LUA_EXPORT_TELEMETRY("accy", "G sensor - acceleration in Y axis [g]")
+  TELEM_ACCz,                     LUA_EXPORT_TELEMETRY("accz", "G sensor - acceleration in Z axis [g]")
+  TELEM_HDG,                      LUA_EXPORT_TELEMETRY("heading", "GPS heading [degrees]")
+  TELEM_VSPEED,                   LUA_EXPORT_TELEMETRY("vario", "Variometer vertical speed [m/s]")
+  TELEM_ASPEED,                   LUA_EXPORT_TELEMETRY("air-speed", "Air speed [knots]")
+  TELEM_DTE,                      LUA_EXPORT_TELEMETRY("dte", "Total energy [???]")
 #if defined(CPUARM)
   TELEM_RESERVE6,
   TELEM_RESERVE7,
@@ -1095,29 +1095,29 @@ enum TelemetrySource {
   TELEM_RESERVE10,
 #endif
   TELEM_MIN_A_FIRST,
-  TELEM_MIN_A1=TELEM_MIN_A_FIRST, LUA_EXPORT_TELEMETRY("a1-", "A1 analogue value minimum")
-  TELEM_MIN_A2,                   LUA_EXPORT_TELEMETRY("a2-", "A2 analogue value minimum")
+  TELEM_MIN_A1=TELEM_MIN_A_FIRST, LUA_EXPORT_TELEMETRY("a1-min", "A1 analogue value minimum [units as configured]")
+  TELEM_MIN_A2,                   LUA_EXPORT_TELEMETRY("a2-min", "A2 analogue value minimum [units as configured]")
 #if !defined(CPUARM)
   TELEM_MIN_A_LAST=TELEM_MIN_A2,
 #else
-  TELEM_MIN_A3,                   LUA_EXPORT_TELEMETRY("a3-", "A3 analogue value minimum")
-  TELEM_MIN_A4,                   LUA_EXPORT_TELEMETRY("a4-", "A4 analogue value minimum")
+  TELEM_MIN_A3,                   LUA_EXPORT_TELEMETRY("a3-min", "A3 analogue value minimum [units as configured]")
+  TELEM_MIN_A4,                   LUA_EXPORT_TELEMETRY("a4-min", "A4 analogue value minimum [units as configured]")
   TELEM_MIN_A_LAST=TELEM_MIN_A4,
 #endif
   // TODO: add A1-4 MAX
-  TELEM_MIN_ALT,
-  TELEM_MAX_ALT,
-  TELEM_MAX_RPM,
-  TELEM_MAX_T1,
-  TELEM_MAX_T2,
-  TELEM_MAX_SPEED,
-  TELEM_MAX_DIST,
-  TELEM_MAX_ASPEED,
-  TELEM_MIN_CELL,
-  TELEM_MIN_CELLS_SUM,
-  TELEM_MIN_VFAS,
-  TELEM_MAX_CURRENT,
-  TELEM_MAX_POWER,
+  TELEM_MIN_ALT,                  LUA_EXPORT_TELEMETRY("altitude-min", "Lowest altitude [meters]")
+  TELEM_MAX_ALT,                  LUA_EXPORT_TELEMETRY("altitude-max", "Highest altitude [meters]")
+  TELEM_MAX_RPM,                  LUA_EXPORT_TELEMETRY("rpm-max", "Highest rotational speed [revolutions per minute] [meters]")
+  TELEM_MAX_T1,                   LUA_EXPORT_TELEMETRY("temp1-max", "Highest temperature 1 [degrees celsius]")
+  TELEM_MAX_T2,                   LUA_EXPORT_TELEMETRY("temp2-max", "Highest temperature 2 [degrees celsius]")
+  TELEM_MAX_SPEED,                LUA_EXPORT_TELEMETRY("gps-speed-max", "Highest GPS speed [???]")
+  TELEM_MAX_DIST,                 LUA_EXPORT_TELEMETRY("distance-max", "Biggest GPS distance [meters]")
+  TELEM_MAX_ASPEED,               LUA_EXPORT_TELEMETRY("air-speed-max", "Highest air speed [knots]")
+  TELEM_MIN_CELL,                 LUA_EXPORT_TELEMETRY("cell-min-min", "LiPo sensor - all time lowest cell voltage [volts]")
+  TELEM_MIN_CELLS_SUM,            LUA_EXPORT_TELEMETRY("cell-sum-min", "LiPo sensor - all time lowest summ of all cell voltages [volts]")
+  TELEM_MIN_VFAS,                 LUA_EXPORT_TELEMETRY("vfas-min", "Current sensor - lowest voltage [volts]")
+  TELEM_MAX_CURRENT,              LUA_EXPORT_TELEMETRY("currentent-max", "Current sensor - highest current [ampers]")
+  TELEM_MAX_POWER,                LUA_EXPORT_TELEMETRY("power-max", "Current sensor - highest power [wats]")
 #if defined(CPUARM)
   TELEM_RESERVE11,
   TELEM_RESERVE12,
@@ -1461,7 +1461,7 @@ enum MixSources {
   MIXSRC_NONE,
 
 #if defined(PCBTARANIS)
-  MIXSRC_FIRST_INPUT,             LUA_EXPORT_MULTIPLE("i%d", "Input %d", 1, MAX_INPUTS)
+  MIXSRC_FIRST_INPUT,             LUA_EXPORT_MULTIPLE("input%d", "Input [I%d]", 1, MAX_INPUTS)
   MIXSRC_LAST_INPUT = MIXSRC_FIRST_INPUT+MAX_INPUTS-1,
 
   MIXSRC_FIRST_LUA,               LUA_EXPORT_SCRIPT_OUTPUTS(MAX_SCRIPTS, MAX_SCRIPT_OUTPUTS)
@@ -1513,10 +1513,10 @@ enum MixSources {
   MIXSRC_CYC2,                  LUA_EXPORT("cyc2", "Cyclic 2")
   MIXSRC_CYC3,                  LUA_EXPORT("cyc3", "Cyclic 3")
 
-  MIXSRC_TrimRud,               LUA_EXPORT("trmr", "Rudder trim")
-  MIXSRC_TrimEle,               LUA_EXPORT("trme", "Elevator trim")
-  MIXSRC_TrimThr,               LUA_EXPORT("trmt", "Throttle trim")
-  MIXSRC_TrimAil,               LUA_EXPORT("trma", "Aileron trim")
+  MIXSRC_TrimRud,               LUA_EXPORT("trim-rud", "Rudder trim")
+  MIXSRC_TrimEle,               LUA_EXPORT("trim-ele", "Elevator trim")
+  MIXSRC_TrimThr,               LUA_EXPORT("trim-thr", "Throttle trim")
+  MIXSRC_TrimAil,               LUA_EXPORT("trim-ail", "Aileron trim")
 
   MIXSRC_FIRST_SWITCH,
 
@@ -1542,7 +1542,7 @@ enum MixSources {
   MIXSRC_TRN,
 #endif
   MIXSRC_FIRST_LOGICAL_SWITCH,
-  MIXSRC_SW1 = MIXSRC_FIRST_LOGICAL_SWITCH, LUA_EXPORT_MULTIPLE("ls%d", "Logical switch %d", 1, NUM_LOGICAL_SWITCH)
+  MIXSRC_SW1 = MIXSRC_FIRST_LOGICAL_SWITCH, LUA_EXPORT_MULTIPLE("ls%d", "Logical switch L%d", 1, NUM_LOGICAL_SWITCH)
   MIXSRC_SW9 = MIXSRC_SW1 + 8,
   MIXSRC_SWA,
   MIXSRC_SWB,
@@ -1553,7 +1553,7 @@ enum MixSources {
   MIXSRC_LAST_TRAINER = MIXSRC_FIRST_TRAINER+NUM_TRAINER-1,
 
   MIXSRC_FIRST_CH,
-  MIXSRC_CH1 = MIXSRC_FIRST_CH,             LUA_EXPORT_MULTIPLE("ch%d", "Channel %d", 1, NUM_CHNOUT)
+  MIXSRC_CH1 = MIXSRC_FIRST_CH,             LUA_EXPORT_MULTIPLE("ch%d", "Channel CH%d", 1, NUM_CHNOUT)
   MIXSRC_CH2,
   MIXSRC_CH3,
   MIXSRC_CH4,
@@ -1591,6 +1591,10 @@ enum LuaExtraFields {
                                                  "pilotLatitude", "frskyData.hub.gpsFix")
   EXTRA_PILOT_LONGITUDE,        LUA_EXPORT_EXTRA("pilot-longitude", "Longitude of frist GPS position [degrees, East is positive]", \
                                                  "pilotLongitude", "frskyData.hub.gpsFix")
+  EXTRA_GPS_CLOCK,              LUA_EXPORT_EXTRA("gps-clock", "GPS clock [seconds from midnight]", \
+                                                 "(int)(frskyData.hub.hour)*3600 + frskyData.hub.min*60 + frskyData.hub.sec", "frskyData.hub.gpsFix")
+  EXTRA_FLIGHT_MODE             LUA_EXPORT_EXTRA("flight-mode", "Current flight mode number [number]", \
+                                                 "getFlightMode()", "true")     
 };
 #endif // #if defined(LUA)
 

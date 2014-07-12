@@ -48,6 +48,8 @@ extern "C" {
 }
 #endif
 
+#include "lua_exports.cpp"   //this line must be after lua headers
+
 #define lua_registernumber(L, n, i)    (lua_pushnumber(L, (i)), lua_setglobal(L, (n)))
 #define lua_registerint(L, n, i)       (lua_pushinteger(L, (i)), lua_setglobal(L, (n)))
 #define lua_pushtablenil(L, k)         (lua_pushstring(L, (k)), lua_pushnil(L), lua_settable(L, -3))
@@ -98,14 +100,16 @@ static int luaGetTime(lua_State *L)
 
 static void luaGetValueAndPush(int src)
 {
-  /*
-    Hint about dividers are taken from putsTelemetryChannel()
-  */
-  if (!TELEMETRY_STREAMING() && src>=MIXSRC_FIRST_TELEM && src<=MIXSRC_LAST_TELEM) {
-    //telemetry not working, return zero for telemetry sources
-    lua_pushinteger(L, (int)0);
-    return;
+  if (src >= MIXSRC_FIRST_TELEM && src <= MIXSRC_LAST_TELEM) {
+    // telemetry values
+   if ((src != MIXSRC_FIRST_TELEM-1+TELEM_TX_VOLTAGE) && !TELEMETRY_STREAMING() ) {
+      // telemetry not working, return zero for telemetry sources
+      // except for "tx voltage"
+      lua_pushinteger(L, (int)0);
+      return;
+    }
   }
+
   int idx = src;
   switch (src) {
     case MIXSRC_FIRST_TELEM-1+TELEM_TX_VOLTAGE:
@@ -153,26 +157,9 @@ static void luaGetValueAndPush(int src)
   }
 }
 
-struct LuaField {
-  uint16_t id;
-  const char * name;
-  const char * desc;
-  //const uint8_t attr;
-};
-
-struct LuaMultipleField {
-  uint16_t id;
-  const char * name;
-  const char * desc;
-  uint8_t start;
-  uint8_t end;
-};
-
-#include "lua_exports.cpp"
-
-//theese are used when returning fields that are defined as multiples
+//these are used when returning fields that are defined as multiples
 static char foundName[10];
-static char foundDesc[100];
+static char foundDesc[50];
 static LuaField foundField = {0, foundName, foundDesc};
 
 /**
@@ -192,10 +179,10 @@ const LuaField * luaFindFieldByName(const char * name)
   for(int n = 0; n < (int)DIM(luaMultipleFields); ++n) {
     for(int i = luaMultipleFields[n].start; i < luaMultipleFields[n].end; i++){
       //char buf[10];
-      sprintf(foundName, luaMultipleFields[n].name, i);
+      snprintf(foundName, sizeof(foundName), luaMultipleFields[n].name, i);
       // TRACE("luaFindFieldByName(): %s", foundName);
       if (!strcmp(name, foundName)) {
-        sprintf(foundDesc, luaMultipleFields[n].desc, i);
+        snprintf(foundDesc, sizeof(foundDesc), luaMultipleFields[n].desc, i);
         foundField.id = luaMultipleFields[n].id+i-1;
         return &foundField;
       }
@@ -222,8 +209,8 @@ const LuaField * luaFindFieldById(int id)
   for(int n = 0; n < (int)DIM(luaMultipleFields); ++n) {
     if ((id >= luaMultipleFields[n].id) && (id <= luaMultipleFields[n].id+luaMultipleFields[n].end-luaMultipleFields[n].start)) {
       int i = id - luaMultipleFields[n].id + luaMultipleFields[n].start;
-      sprintf(foundName, luaMultipleFields[n].name, i);  
-      sprintf(foundDesc, luaMultipleFields[n].desc, i);
+      snprintf(foundName, sizeof(foundName), luaMultipleFields[n].name, i);  
+      snprintf(foundDesc, sizeof(foundDesc), luaMultipleFields[n].desc, i);
       foundField.id = id;
       return &foundField;
     }
