@@ -33,8 +33,10 @@ void simuTelemetryInit(){
     serv_addr.sin_port = htons(portno);
     if (connect(sockfd,(struct sockaddr *) &serv_addr,sizeof(serv_addr)) < 0) 
       fprintf (stderr,"Not connected %d\n",portno);
+	else {
     fprintf (stdout, "Connected to port %d\n",portno);
     pthread_create(&t1, NULL, &readFrskyData, NULL);
+	}
 }
 
 
