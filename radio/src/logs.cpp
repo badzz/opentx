@@ -123,13 +123,9 @@ const pm_char * openLogs()
 
 #if defined(FRSKY_HUB)
     if (IS_USR_PROTO_FRSKY_HUB()) {
-      f_puts("GPS Date,GPS Time,Long,Lat,Course,GPS Speed(", &g_oLogFile);
-      f_puts(TELEMETRY_SPEED_UNIT, &g_oLogFile);
-      f_puts("),GPS Alt,Baro Alt(", &g_oLogFile);
+      f_puts("GPS Date,GPS Time,Long,Lat,Course,GPS Speed(kts),GPS Alt,Baro Alt(", &g_oLogFile);
       f_puts(TELEMETRY_BARO_ALT_UNIT, &g_oLogFile);
-      f_puts("),Vertical Speed,Air Speed(", &g_oLogFile);
-      f_puts(TELEMETRY_SPEED_UNIT, &g_oLogFile);
-      f_puts("),Temp1,Temp2,RPM,Fuel," TELEMETRY_CELLS_LABEL "Current,Consumption,Vfas,AccelX,AccelY,AccelZ,", &g_oLogFile);
+      f_puts("),Vertical Speed,Air Speed(kts),Temp1,Temp2,RPM,Fuel," TELEMETRY_CELLS_LABEL "Current,Consumption,Vfas,AccelX,AccelY,AccelZ,", &g_oLogFile);
     }
 #endif
 
@@ -200,13 +196,13 @@ void writeLogs()
 
 #if defined(FRSKY)
 #if defined(CPUARM)
-      f_printf(&g_oLogFile, "%d,%d,", frskyData.swr.value, frskyData.rssi[0].value);
+      f_printf(&g_oLogFile, "%d,%d,", RAW_FRSKY_MINMAX(frskyData.swr), RAW_FRSKY_MINMAX(frskyData.rssi[0]));
 #else
-      f_printf(&g_oLogFile, "%d,%d,%d,", frskyStreaming, frskyData.rssi[0].value, frskyData.rssi[1].value);
+      f_printf(&g_oLogFile, "%d,%d,%d,", frskyStreaming, RAW_FRSKY_MINMAX(frskyData.rssi[0]), RAW_FRSKY_MINMAX(frskyData.rssi[1]));
 #endif
 
       for (uint8_t i=0; i<MAX_FRSKY_A_CHANNELS; i++) {
-        int16_t converted_value = applyChannelRatio(i, frskyData.analog[i].value);
+        int16_t converted_value = applyChannelRatio(i, RAW_FRSKY_MINMAX(frskyData.analog[i]));
         f_printf(&g_oLogFile, "%d.%02d,", converted_value/100, converted_value%100);
       }
 #endif
@@ -215,7 +211,7 @@ void writeLogs()
       TELEMETRY_BARO_ALT_PREPARE();
 
       if (IS_USR_PROTO_FRSKY_HUB()) {
-        f_printf(&g_oLogFile, "%4d-%02d-%02d,%02d:%02d:%02d,%03d.%04d%c,%03d.%04d%c,%03d.%02d," TELEMETRY_SPEED_FORMAT TELEMETRY_GPS_ALT_FORMAT TELEMETRY_BARO_ALT_FORMAT TELEMETRY_VSPEED_FORMAT TELEMETRY_SPEED_FORMAT "%d,%d,%d,%d," TELEMETRY_CELLS_FORMAT TELEMETRY_CURRENT_FORMAT "%d," TELEMETRY_VFAS_FORMAT "%d,%d,%d,",
+        f_printf(&g_oLogFile, "%4d-%02d-%02d,%02d:%02d:%02d,%03d.%04d%c,%03d.%04d%c,%03d.%02d," TELEMETRY_GPS_SPEED_FORMAT TELEMETRY_GPS_ALT_FORMAT TELEMETRY_BARO_ALT_FORMAT TELEMETRY_VSPEED_FORMAT TELEMETRY_ASPEED_FORMAT "%d,%d,%d,%d," TELEMETRY_CELLS_FORMAT TELEMETRY_CURRENT_FORMAT "%d," TELEMETRY_VFAS_FORMAT "%d,%d,%d,",
             frskyData.hub.year+2000,
             frskyData.hub.month,
             frskyData.hub.day,

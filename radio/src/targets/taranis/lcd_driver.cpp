@@ -13,11 +13,103 @@
 
 #define	WriteData(x)	 AspiData(x)
 #define	WriteCommand(x)	 AspiCmd(x)
-#define CONTRAST_OFS     5
+
+#if defined(REVPLUS)
+  #define CONTRAST_OFS 160
+#else
+  #define CONTRAST_OFS 5
+#endif
+
+//275us
+void Delay(volatile unsigned int ms)
+{
+  volatile u8 i;
+  while(ms != 0) {
+    for(i=0;i<250;i++) {}
+    for(i=0;i<75;i++) {}
+    ms--;
+  }
+}
+
+#if defined(REVPLUS)
+static void LCD_Hardware_Init() ;
+
+// New hardware SPI driver for LCD
+void initLcdSpi()
+{
+  // uint16_t temp ;
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_LCD, ENABLE);
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_LCD_RST, ENABLE);
+  RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_LCD_NCS, ENABLE);
+
+  RCC->APB1ENR |= RCC_APB1ENR_SPI3EN ;    // Enable clock
+  // APB1 clock / 2 = 133nS per clock
+  SPI3->CR1 = 0 ;		// Clear any mode error
+  SPI3->CR1 = SPI_CR1_SSM | SPI_CR1_SSI | SPI_CR1_CPOL | SPI_CR1_CPHA ;
+  SPI3->CR2 = 0 ;
+  SPI3->CR1 |= SPI_CR1_MSTR ;	// Make sure in case SSM/SSI needed to be set first
+  SPI3->CR1 |= SPI_CR1_SPE ;
+
+  configure_pins( PIN_LCD_NCS, PIN_OUTPUT | PIN_PORTA | PIN_PUSHPULL | PIN_OS25 | PIN_NO_PULLUP ) ;
+  configure_pins( PIN_LCD_RST, PIN_OUTPUT | PIN_PORTD | PIN_PUSHPULL | PIN_OS25 | PIN_NO_PULLUP ) ;
+  configure_pins( PIN_LCD_A0,  PIN_OUTPUT | PIN_PORTC | PIN_PUSHPULL | PIN_OS50 | PIN_NO_PULLUP ) ;
+  configure_pins( PIN_LCD_MOSI|PIN_LCD_CLK, PIN_PORTC | PIN_PUSHPULL | PIN_OS50 | PIN_NO_PULLUP | PIN_PER_6 | PIN_PERIPHERAL ) ;
+}
+
+void setupSPIdma()
+{
+  RCC->AHB1ENR |= RCC_AHB1ENR_DMA1EN ;			// Enable DMA1 clock
+  // Chan 0, 8-bit wide, Medium priority, memory increments
+  DMA1_Stream7->CR &= ~DMA_SxCR_EN ;		// Disable DMA
+  DMA1->HIFCR = DMA_HIFCR_CTCIF7 | DMA_HIFCR_CHTIF7 | DMA_HIFCR_CTEIF7 | DMA_HIFCR_CDMEIF7 | DMA_HIFCR_CFEIF7 ; // Write ones to clear bits
+  DMA1_Stream7->CR =  DMA_SxCR_PL_0 | DMA_SxCR_MINC | DMA_SxCR_DIR_0 ;
+  DMA1_Stream7->PAR = (uint32_t) &SPI3->DR ;
+  DMA1_Stream7->M0AR = (uint32_t)displayBuf;
+  DMA1_Stream7->FCR = 0x05 ; //DMA_SxFCR_DMDIS | DMA_SxFCR_FTH_0 ;
+  DMA1_Stream7->NDTR = LCD_W*LCD_H/8*4 ;
+
+//	NVIC_SetPriority( DMA1_Stream7_IRQn, 2 ) ; // Lower priority interrupt
+//	NVIC_EnableIRQ(DMA1_Stream7_IRQn) ;
+}
 
 static void LCD_Init()
+{
+  WriteCommand(0x2F);   //Internal pump control
+  Delay(20);
+  WriteCommand(0x24);   //Temperature compensation
+  WriteCommand(0xE9);   //set bias=1/10
+  WriteCommand(0x81);   //Set Vop
+#if defined(BOOT)
+  AspiCmd(CONTRAST_OFS+25);
+#else
+  AspiCmd(CONTRAST_OFS+g_eeGeneral.contrast);
+#endif
+  WriteCommand(0xA2);   //set line rate:28KLPS
+  WriteCommand(0x28);   //set pannel loading
+  WriteCommand(0x40);   //scroll line LSB
+  WriteCommand(0x50);   //SCROLL LINE MSB
+  WriteCommand(0x89);   //ram address control
+  WriteCommand(0xC0);   //LCD mapping control
+  WriteCommand(0x04);   //MX=0,MY=1
+  WriteCommand(0xD0);   //DISPLAY PATTERN = 16-SCALE GRAY
+  WriteCommand(0xF1);   //SET COM end
+  WriteCommand(0x3F);   //64
+
+  WriteCommand(0xF8);   //Set Window Program Disable.
+
+  WriteCommand(0xF5);   //starting row address of RAM program window.PAGE1
+  WriteCommand(0x00);
+  WriteCommand(0xF7);   //end row address of RAM program window.PAGE32
+  WriteCommand(0x1F);
+  WriteCommand(0xF4);   //start column address of RAM program window.
+  WriteCommand(0x00);
+  WriteCommand(0xF6);   //end column address of RAM program window.SEG212
+  WriteCommand(0xD3);
+}
+#else
+static void LCD_Init()
 {	
-  AspiCmd(0x2b);   //Panel loading set ,Internal VLCD.
+  AspiCmd(0x2B);   //Panel loading set ,Internal VLCD.
   AspiCmd(0x25);   //Temperature compensation curve definition: 0x25 = -0.05%/oC
   AspiCmd(0xEA);	//set bias=1/10 :Command table NO.27
   AspiCmd(0x81);	//Set Vop
@@ -47,40 +139,6 @@ static void LCD_Init()
   AspiCmd(0x47);
   AspiCmd(0xF7);   //ending row address of RAM program window.
   AspiCmd(0x9F);
-
-  
-}
-
-#if 0 // to be removed later if nobody complains!
-static void lcdRefreshInit()
-{	
-  AspiCmd(0x2b);   //Panel loading set ,Internal VLCD.
-  AspiCmd(0x25);   //Temperature compensation curve definition: 0x25 = -0.05%/oC
-  AspiCmd(0xEA);	//set bias=1/10 :Command table NO.27
-  AspiCmd(0x81);	//Set Vop
-  AspiCmd(g_eeGeneral.contrast+CONTRAST_OFS);		//0--255
-  AspiCmd(0xA6);	//inverse display off
-  AspiCmd(0xD1);	//SET RGB:Command table NO.21 .SET RGB or BGR.  D1=RGB
-  AspiCmd(0xD5);	//set color mode 4K and 12bits  :Command table NO.22
-  AspiCmd(0xA0);	//line rates,25.2 Klps
-  AspiCmd(0xC8);	//SET N-LINE INVERSION
-  AspiCmd(0x1D);	//Disable NIV
-  AspiCmd(0xF1);	//Set CEN
-  AspiCmd(0x3F);	// 1/64DUTY
-  AspiCmd(0x84);	//Disable Partial Display
-  AspiCmd(0xC4);	//MY=1,MX=0
-  AspiCmd(0x89);	//WA=1,column (CA) increment (+1) first until CA reaches CA boundary, then RA will increment by (+1).
-
-  AspiCmd(0xF8);	//Set Window Program Enable  ,inside modle
-  AspiCmd(0xF4);   //starting column address of RAM program window.
-  AspiCmd(0x00);
-  AspiCmd(0xF5);   //starting row address of RAM program window.
-  AspiCmd(0x60);
-  AspiCmd(0xF6);   //ending column address of RAM program window.
-  AspiCmd(0x47);
-  AspiCmd(0xF7);   //ending row address of RAM program window.
-  AspiCmd(0x9F);
-  AspiCmd(0xAF);
 }
 #endif
 
@@ -93,9 +151,6 @@ void Set_Address(u8 x, u8 y)
   WriteCommand(((y>>4)&0x0F)|0x70);    //Set Row Address MSB RA [7:4]
 }
 
-#define PALETTE_IDX(p, x, mask) (((p[x] & mask) ? 0x1 : 0) + ((p[DISPLAY_PLAN_SIZE+x] & mask) ? 0x2 : 0) + ((p[2*DISPLAY_PLAN_SIZE+x] & mask) ? 0x4 : 0) + ((p[3*DISPLAY_PLAN_SIZE+x] & mask) ? 0x8 : 0))
-const uint8_t lcdPalette[4] = { 0, 0x03, 0x06, 0x0F };
-
 #define LCD_WRITE_BIT(bit) \
   if (bit) \
     LCD_MOSI_HIGH(); \
@@ -105,11 +160,40 @@ const uint8_t lcdPalette[4] = { 0, 0x03, 0x06, 0x0F };
   __no_operation(); \
   LCD_CLK_HIGH();
 
+#if defined(REVPLUS)
+void lcdRefresh(bool wait)
+{
+  Set_Address(0, 0);
+	
+  LCD_NCS_LOW();
+  LCD_A0_HIGH();
+
+  setupSPIdma() ;
+  DMA1_Stream7->CR |= DMA_SxCR_EN ;		// Enable DMA
+  SPI3->CR2 |= SPI_CR2_TXDMAEN ;
+
+  while ( ( DMA1->HISR & DMA_HISR_TCIF7 ) == 0 ) {
+    // wait
+  }
+
+  SPI3->CR2 &= ~SPI_CR2_TXDMAEN ;
+  DMA1_Stream7->CR &= ~DMA_SxCR_EN ;		// Disable DMA
+
+  while ( ( SPI3->SR & SPI_SR_TXE ) == 0 ) {
+    // wait
+  } // Last byte being sent
+
+  while ( SPI3->SR & SPI_SR_BSY ) {
+    // wait
+  }
+  
+  LCD_NCS_HIGH();
+}
+#else
 void lcdRefresh()
 {  
   for (uint32_t y=0; y<LCD_H; y++) {
-    uint8_t *p = &displayBuf[(y>>3)*LCD_W];
-    uint8_t mask = (1 << (y%8));
+    uint8_t *p = &displayBuf[y/2 * LCD_W];
 
     Set_Address(0, y);
     AspiCmd(0xAF);
@@ -119,10 +203,13 @@ void lcdRefresh()
     LCD_NCS_LOW();
 
     for (uint32_t x=0; x<LCD_W; x++) {
-      LCD_WRITE_BIT(p[3*DISPLAY_PLAN_SIZE+x] & mask);
-      LCD_WRITE_BIT(p[2*DISPLAY_PLAN_SIZE+x] & mask);
-      LCD_WRITE_BIT(p[DISPLAY_PLAN_SIZE+x] & mask);
-      LCD_WRITE_BIT(p[x] & mask);
+      uint8_t b = p[x];
+      if (y & 1)
+        b >>= 4;
+      LCD_WRITE_BIT(b & 0x08);
+      LCD_WRITE_BIT(b & 0x04);
+      LCD_WRITE_BIT(b & 0x02);
+      LCD_WRITE_BIT(b & 0x01);
     }
 
     LCD_NCS_HIGH();
@@ -131,6 +218,7 @@ void lcdRefresh()
     WriteData(0);
   }
 }
+#endif
 
 /**Init the Backlight GPIO */
 static void LCD_BL_Config()
@@ -184,7 +272,7 @@ static void LCD_BL_Config()
 static void LCD_Hardware_Init()
 {
   RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_LCD, ENABLE);
-  
+
   GPIO_InitTypeDef GPIO_InitStructure;
   
   /*!< Configure lcd CLK\ MOSI\ A0pin in output pushpull mode *************/
@@ -210,18 +298,6 @@ static void LCD_Hardware_Init()
   GPIO_Init(GPIO_LCD_RST, &GPIO_InitStructure);
 }
 
-//275us
-void Delay(volatile unsigned int ms)
-{
-  volatile u8 i;
-  while(ms != 0)
-  {
-    for(i=0;i<250;i++) {}
-    for(i=0;i<75;i++) {}
-    ms--;
-  }
-}
-
 void LCD_OFF()
 {
   AspiCmd(0xE2);
@@ -232,6 +308,9 @@ void lcdInit()
 {
   LCD_BL_Config();
   LCD_Hardware_Init();
+#if defined(REVPLUS)
+  initLcdSpi() ;
+#endif
   
   LCD_RST_HIGH();
   Delay(5);
@@ -247,8 +326,6 @@ void lcdInit()
   LCD_Init();
   Delay(120);
 
-  LCD_Init();
-  Delay(120);
   AspiCmd(0xAF);	//dc2=1, IC into exit SLEEP MODE, dc3=1 gray=ON, dc4=1 Green Enhanc mode disabled
 }
 

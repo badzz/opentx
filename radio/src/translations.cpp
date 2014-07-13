@@ -100,6 +100,7 @@ const pm_char STR_OPEN9X[] PROGMEM =
     ISTR(VTMRMODES)
 #if defined(CPUM2560) || defined(CPUARM)
     ISTR(DATETIME)
+    ISTR(VPERSISTENT)
 #endif
 #if defined(CPUARM)
     ISTR(VLCD)
@@ -127,6 +128,9 @@ const pm_char STR_OPEN9X[] PROGMEM =
 
 // The 0-terminated-strings
 const pm_char STR_POPUPS[] PROGMEM = TR_POPUPS;
+#if !defined(OFS_EXIT)
+  const pm_char STR_EXIT[] PROGMEM = TR_EXIT;
+#endif
 const pm_char STR_MENUWHENDONE[] PROGMEM = TR_MENUWHENDONE;
 const pm_char STR_FREE[] PROGMEM = TR_FREE;
 const pm_char STR_DELETEMODEL[] PROGMEM = TR_DELETEMODEL;
@@ -474,6 +478,7 @@ const pm_char STR_FLASH_BOOTLOADER[] PROGMEM = TR_FLASH_BOOTLOADER;
 const pm_char STR_WRITING[] PROGMEM = TR_WRITING;
 const pm_char STR_CONFIRM_FORMAT[] PROGMEM = TR_CONFIRM_FORMAT;
 const pm_char STR_EEBACKUP[] PROGMEM = TR_EEBACKUP;
+const pm_char STR_TOO_MANY_LUA_SCRIPTS[] PROGMEM = TR_TO_MANY_LUA_SCRIPTS;
 const pm_char STR_BLCOLOR[]  PROGMEM = TR_BLCOLOR;
 
 #if LCD_W >= 212

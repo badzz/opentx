@@ -43,14 +43,15 @@
 #define BT_STACK_SIZE       500
 #define DEBUG_STACK_SIZE    500
 
-OS_TID menusTaskId;
-#if !defined(SIMU)
-// stack must be alligned to 8 bytes otherwise printf for %f does not work!
-OS_STK __attribute__((aligned(8))) menusStack[MENUS_STACK_SIZE];
-#else
-// but VC++ doesn't like the aligned keyword, so keep it as is on simu (which works)
-OS_STK menusStack[MENUS_STACK_SIZE];
+#if defined(_MSC_VER)
+  #define _ALIGNED(x) __declspec(align(x))
+#elif defined(__GNUC__)
+  #define _ALIGNED(x) __attribute__ ((aligned(x)))
 #endif
+
+OS_TID menusTaskId;
+// stack must be aligned to 8 bytes otherwise printf for %f does not work!
+OS_STK _ALIGNED(8) menusStack[MENUS_STACK_SIZE];
 
 OS_TID mixerTaskId;
 OS_STK mixerStack[MIXER_STACK_SIZE];
@@ -146,7 +147,9 @@ uint8_t heartbeat;
 
 uint8_t stickMode;
 
+#if defined(SAFETY_CHANNEL_FUNCTION)
 int8_t safetyCh[NUM_CHNOUT];
+#endif
 
 union ReusableBuffer reusableBuffer;
 
@@ -548,17 +551,17 @@ int getTrimValue(uint8_t phase, uint8_t idx)
 #endif
 }
 
-void setTrimValue(uint8_t phase, uint8_t idx, int trim)
-{
 #if defined(PCBTARANIS)
+bool setTrimValue(uint8_t phase, uint8_t idx, int trim)
+{
   for (uint8_t i=0; i<MAX_FLIGHT_MODES; i++) {
     trim_t & v = flightModeAddress(phase)->trim[idx];
     if (v.mode == TRIM_MODE_NONE)
-      return;
+      return false;
     unsigned int p = v.mode >> 1;
     if (p == phase || phase == 0) {
       v.value = trim;
-      break;;
+      break;
     }
     else if (v.mode % 2 == 0) {
       phase = p;
@@ -568,7 +571,13 @@ void setTrimValue(uint8_t phase, uint8_t idx, int trim)
       break;
     }
   }
-#elif defined(PCBSTD)
+  eeDirty(EE_MODEL);
+  return true;
+}
+#else
+void setTrimValue(uint8_t phase, uint8_t idx, int trim)
+{
+#if defined(PCBSTD)
   FlightModeData *p = flightModeAddress(phase);
   p->trim[idx] = (int8_t)(trim >> 2);
   idx <<= 1;
@@ -579,6 +588,7 @@ void setTrimValue(uint8_t phase, uint8_t idx, int trim)
 #endif
   eeDirty(EE_MODEL);
 }
+#endif
 
 #if !defined(PCBTARANIS)
 uint8_t getTrimFlightPhase(uint8_t phase, uint8_t idx)
@@ -761,7 +771,7 @@ ls_telemetry_value_t maxTelemValue(uint8_t channel)
     case TELEM_MAX_SPEED:
     case TELEM_ASPEED:
     case TELEM_MAX_ASPEED:
-      return 2000;
+      return 20000;
     case TELEM_CELL:
     case TELEM_MIN_CELL:
       return 510;
@@ -844,11 +854,13 @@ getvalue_t convert8bitsTelemValue(uint8_t channel, ls_telemetry_value_t value)
       break;
     case TELEM_CELL:
     case TELEM_HDG:
-    case TELEM_ASPEED:
-    case TELEM_MAX_ASPEED:
     case TELEM_SPEED:
     case TELEM_MAX_SPEED:
       result = value * 2;
+      break;
+    case TELEM_ASPEED:
+    case TELEM_MAX_ASPEED:
+      result = value * 20;
       break;
     case TELEM_DIST:
     case TELEM_MAX_DIST:
@@ -893,14 +905,18 @@ FORCEINLINE void convertUnit(getvalue_t & val, uint8_t & unit)
     if (unit == UNIT_KTS) {
       // kts to mph
       unit = UNIT_SPEED;
-      val = (val * 31) / 27;
+      val = (val * 23) / 20;
     }
   }
   else {
     if (unit == UNIT_KTS) {
       // kts to km/h
       unit = UNIT_SPEED;
+#if defined(CPUARM)
+      val = (val * 1852) / 1000;
+#else
       val = (val * 50) / 27;
+#endif
     }
   }
 
@@ -1311,12 +1327,18 @@ uint8_t checkTrim(uint8_t event)
     if (TRIM_REUSED(idx)) {
       SET_GVAR_VALUE(trimGvar[idx], phase, after);
     }
-    else {
-      setTrimValue(phase, idx, after);
-    }
-#else
-    setTrimValue(phase, idx, after);
+    else
 #endif
+    {
+#if defined(PCBTARANIS)
+      if (!setTrimValue(phase, idx, after)) {
+        // we don't play a beep, so we exit now the function
+        return;
+      }
+#else
+      setTrimValue(phase, idx, after);
+#endif
+    }
 
 #if defined(AUDIO)
     // toneFreq higher/lower according to trim position
@@ -1361,10 +1383,6 @@ uint16_t Current_analogue;
 uint16_t Current_max;
 uint32_t Current_accumulator;
 uint32_t Current_used;
-#endif
-
-#if defined(CPUARM) && !defined(REVA)
-uint16_t sessionTimer;
 #endif
 
 #if !defined(SIMU)
@@ -1579,7 +1597,7 @@ uint8_t g_vbat100mV = 0;
 uint16_t lightOffCounter;
 uint8_t flashCounter = 0;
 
-uint16_t s_timeCumTot;
+uint16_t sessionTimer;
 uint16_t s_timeCumThr;    // THR in 1/16 sec
 uint16_t s_timeCum16ThrP; // THR% in 1/16 sec
 
@@ -1601,15 +1619,16 @@ void flightReset()
   else
     AUDIO_RESET();
 
-  timerReset(0);
-  timerReset(1);
+  if (!IS_MANUAL_RESET_TIMER(0)) {
+    timerReset(0);
+  }
+
+  if (!IS_MANUAL_RESET_TIMER(1)) {
+    timerReset(1);
+  }
+
 #if defined(FRSKY)
   telemetryReset();
-#endif
-
-  logicalSwitchesReset();
-#if !defined(CPUARM)
-  s_last_switch_value = 0;
 #endif
 
   s_mixer_first_run_done = false;
@@ -1637,11 +1656,7 @@ FORCEINLINE void evalTrims()
     // do trim -> throttle trim if applicable
     int16_t trim = getTrimValue(phase, i);
     if (i==THR_STICK && g_model.thrTrim) {
-      if (g_model.throttleReversed)
-        trim = -trim;
-      int16_t v = anas[i];
-      int32_t vv = ((int32_t)trim-TRIM_MIN)*(RESX-v)>>(RESX_SHIFT+1);
-      trim = vv;
+      trim = (((g_model.throttleReversed)?(int32_t)(trim+TRIM_MIN):(int32_t)(trim-TRIM_MIN)) * (RESX-getValue(MIXSRC_Thr))) >> (RESX_SHIFT+1);
     }
     else if (trimsCheckTimer > 0) {
       trim = 0;
@@ -1751,7 +1766,7 @@ PLAY_FUNCTION(playValue, uint8_t idx)
 
     case MIXSRC_FIRST_TELEM+TELEM_ASPEED-1:
     case MIXSRC_FIRST_TELEM+TELEM_MAX_ASPEED-1:
-      PLAY_NUMBER(val, 1+UNIT_KTS, 0);
+      PLAY_NUMBER(val/10, 1+UNIT_KTS, 0);
       break;
 
     case MIXSRC_FIRST_TELEM+TELEM_CONSUMPTION-1:
@@ -1852,9 +1867,11 @@ void evalFunctions()
   static rotenc_t rePreviousValues[ROTARY_ENCODERS];
 #endif
 
+#if defined(SAFETY_CHANNEL_FUNCTION)
   for (uint8_t i=0; i<NUM_CHNOUT; i++) {
     safetyCh[i] = -128; // not defined
   }
+#endif
 
 #if defined(GVARS)
   for (uint8_t i=0; i<NUM_STICKS; i++) {
@@ -1883,9 +1900,11 @@ void evalFunctions()
 
         switch (CFN_FUNC(sd)) {
 
+#if defined(SAFETY_CHANNEL_FUNCTION)
           case FUNC_SAFETY_CHANNEL:
             safetyCh[CFN_CH_INDEX(sd)] = CFN_PARAM(sd);
             break;
+#endif
 
           case FUNC_TRAINER:
           {
@@ -2179,6 +2198,14 @@ void doMixerCalculations()
 #endif
 
   if (tick10ms) {
+
+#if !defined(CPUM64) && !defined(ACCURAT_THROTTLE_TIMER)
+    //  code cost is about 16 bytes for higher throttle accuracy for timer
+    //  would not be noticable anyway, because all version up to this change had only 16 steps;
+    //  now it has already 32  steps; this define would increase to 128 steps
+    #define ACCURAT_THROTTLE_TIMER
+#endif
+
     /* Throttle trace */
     int16_t val;
 
@@ -2335,7 +2362,7 @@ void doMixerCalculations()
 
       if (s_cnt_1s >= 10) { // 1sec
         s_cnt_1s -= 10;
-        s_timeCumTot += 1;
+        sessionTimer += 1;
 
         struct t_inactivity *ptrInactivity = &inactivity;
         FORCE_INDIRECT(ptrInactivity) ;
@@ -2344,9 +2371,9 @@ void doMixerCalculations()
           AUDIO_INACTIVITY();
 
 #if defined(AUDIO)
-        if (mixWarning & 1) if ((s_timeCumTot&0x03)==0) AUDIO_MIX_WARNING(1);
-        if (mixWarning & 2) if ((s_timeCumTot&0x03)==1) AUDIO_MIX_WARNING(2);
-        if (mixWarning & 4) if ((s_timeCumTot&0x03)==2) AUDIO_MIX_WARNING(3);
+        if (mixWarning & 1) if ((sessionTimer&0x03)==0) AUDIO_MIX_WARNING(1);
+        if (mixWarning & 2) if ((sessionTimer&0x03)==1) AUDIO_MIX_WARNING(2);
+        if (mixWarning & 4) if ((sessionTimer&0x03)==2) AUDIO_MIX_WARNING(3);
 #endif
 
 #if defined(ACCURAT_THROTTLE_TIMER)
@@ -2619,14 +2646,9 @@ void perMain()
   static uint32_t OneSecTimer;
   if (++OneSecTimer >= 100) {
     OneSecTimer -= 100 ;
-    sessionTimer += 1;
     Current_used += Current_accumulator / 100 ;                     // milliAmpSeconds (but scaled)
     Current_accumulator = 0 ;
   }
-#endif
-
-#if defined(PCBTARANIS)
-  sessionTimer = s_timeCumTot;
 #endif
 
 #if defined(CPUARM)
@@ -2811,7 +2833,7 @@ void perMain()
     if (!LCD_LOCKED()) {
       lcd_clear();
       g_menuStack[g_menuStackPtr]((warn || menu) ? 0 : evt);
-      }
+    }
 
 #if defined(LUA)
     luaTask(evt);
@@ -2832,7 +2854,8 @@ void perMain()
   }
 
   drawStatusLine();
-  lcdRefresh();
+
+  lcdRefresh(LCD_REFRESH_DONT_WAIT);
 
   if (SLAVE_MODE()) {
     JACK_PPM_OUT();
@@ -3032,7 +3055,7 @@ FORCEINLINE void DSM2_USART0_vect()
 
 #if !defined(SIMU) && !defined(CPUARM)
 
-#if defined (FRSKY) || defined(DSM2_SERIAL)
+#if defined (FRSKY)
 
 // USART0 Transmit Data Register Emtpy ISR
 FORCEINLINE void FRSKY_USART0_vect()
@@ -3073,18 +3096,26 @@ void instantTrim()
 {
   evalInputs(e_perout_mode_notrainer);
 
-  for (uint8_t i=0; i<NUM_STICKS; i++) {
-    if (i!=THR_STICK) {
+  for (uint8_t stick=0; stick<NUM_STICKS; stick++) {
+    if (stick!=THR_STICK) {
       // don't instant trim the throttle stick
-      uint8_t trim_phase = getTrimFlightPhase(mixerCurrentFlightMode, i);
+      uint8_t trim_phase = getTrimFlightPhase(mixerCurrentFlightMode, stick);
 #if defined(PCBTARANIS)
-      int16_t delta = calibratedStick[i];
+      int16_t delta = 0;
+      for (int e=0; e<MAX_EXPOS; e++) {
+        ExpoData * ed = expoAddress(e);
+        if (!EXPO_VALID(ed)) break; // end of list
+        if (ed->srcRaw-MIXSRC_Rud == stick) {
+          delta = anas[ed->chn];
+          break;
+        }
+      }
 #else
-      int16_t delta = anas[i];
+      int16_t delta = anas[stick];
 #endif
       if (abs(delta) >= INSTANT_TRIM_MARGIN) {
-        int16_t trim = limit<int16_t>(TRIM_EXTENDED_MIN, (delta + trims[i]) / 2, TRIM_EXTENDED_MAX);
-        setTrimValue(trim_phase, i, trim);
+        int16_t trim = limit<int16_t>(TRIM_EXTENDED_MIN, (delta + trims[stick]) / 2, TRIM_EXTENDED_MAX);
+        setTrimValue(trim_phase, stick, trim);
       }
     }
   }
@@ -3206,6 +3237,8 @@ void saveTimers()
 #if defined(CPUARM) && !defined(REVA)
   if (sessionTimer > 0) {
     g_eeGeneral.globalTimer += sessionTimer;
+    eeDirty(EE_GENERAL);
+    sessionTimer = 0;
   }
 #endif
 }
@@ -3298,6 +3331,7 @@ inline void opentxInit(OPENTX_INIT_ARGS)
 #if defined(PCBTARANIS)
   CoTickDelay(100);   //200ms
   lcdInit();
+  lcdSetRefVolt(g_eeGeneral.contrast);
   BACKLIGHT_ON();
   CoTickDelay(20);  //20ms
   Splash();
@@ -3367,7 +3401,7 @@ inline void opentxInit(OPENTX_INIT_ARGS)
   backlightOn();
 
 #if defined(PCBTARANIS)
-  uart3Init(g_eeGeneral.uart3Mode, g_model.telemetryProtocol);
+  uart3Init(g_eeGeneral.uart3Mode, MODEL_TELEMETRY_PROTOCOL);
 #endif
 
 #if defined(CPUARM)
@@ -3473,7 +3507,9 @@ int main(void)
   g_menuStack[1] = menuModelSelect;
 #endif
 
+#if !defined(PCBTARANIS)
   lcdSetRefVolt(25);
+#endif
 
   sei(); // interrupts needed for telemetryInit and eeReadAll.
 

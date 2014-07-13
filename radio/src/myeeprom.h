@@ -58,10 +58,10 @@
   #define EEPROM_VER             216
   #define FIRST_CONV_EEPROM_VER  215
 #elif defined(CPUM2560) || defined(CPUM2561)
-  #define EEPROM_VER             216
+  #define EEPROM_VER             217
   #define FIRST_CONV_EEPROM_VER  EEPROM_VER
 #elif defined(CPUM128)
-  #define EEPROM_VER             216
+  #define EEPROM_VER             217
 #else
   #define EEPROM_VER             216
 #endif
@@ -108,7 +108,7 @@
   #define MAX_FLIGHT_MODES    6
   #define MAX_MIXERS          32
   #define MAX_EXPOS           16
-  #define NUM_LOGICAL_SWITCH  15 // number of custom switches
+  #define NUM_LOGICAL_SWITCH  12 // number of custom switches
   #define NUM_CFN             24 // number of functions assigned to switches
   #define NUM_TRAINER         8
   #define NUM_POTS            3
@@ -119,7 +119,7 @@
   #define MAX_FLIGHT_MODES    5
   #define MAX_MIXERS          32
   #define MAX_EXPOS           14
-  #define NUM_LOGICAL_SWITCH  15 // number of custom switches
+  #define NUM_LOGICAL_SWITCH  12 // number of custom switches
   #define NUM_CFN             24 // number of functions assigned to switches
   #define NUM_TRAINER         8
   #define NUM_POTS            3
@@ -609,8 +609,8 @@ PACK(typedef struct {
 }) MixData;
 #else
 PACK(typedef struct {
-  uint8_t  destCh:4;
-  uint8_t  mixWarn:4;         // mixer warning
+  uint8_t  destCh:5;
+  uint8_t  mixWarn:3;         // mixer warning
   uint16_t flightModes;
   uint8_t  curveMode:1;
   uint8_t  noExpo:1;
@@ -837,7 +837,11 @@ enum Functions {
   FUNC_MAX
 };
 
-#define HAS_ENABLE_PARAM(func)    ((func) < FUNC_FIRST_WITHOUT_ENABLE)
+#if defined(SAFETY_CHANNEL_FUNCTION)
+  #define HAS_ENABLE_PARAM(func)    ((func) < FUNC_FIRST_WITHOUT_ENABLE)
+#else
+  #define HAS_ENABLE_PARAM(func)    ((func) < FUNC_FIRST_WITHOUT_ENABLE && (func) != FUNC_SAFETY_CHANNEL)
+#endif
 
 #if defined(VOICE)
   #define IS_PLAY_FUNC(func)      ((func) >= FUNC_PLAY_SOUND && func <= FUNC_PLAY_VALUE)
@@ -1586,10 +1590,11 @@ PACK(typedef struct t_TimerData {
   uint16_t start;
   uint8_t  countdownBeep:2;
   uint8_t  minuteBeep:1;
-  uint8_t  persistent:1;
-  uint8_t  spare:4;
+  uint8_t  persistent:2;
+  uint8_t  spare:3;
   uint16_t value;
 }) TimerData;
+#define IS_MANUAL_RESET_TIMER(idx) (g_model.timers[idx].persistent == 2)
 #else
 PACK(typedef struct t_TimerData {
   int8_t    mode;            // timer trigger source -> off, abs, stk, stk%, sw/!sw, !m_sw/!m_sw
@@ -1598,6 +1603,7 @@ PACK(typedef struct t_TimerData {
   uint16_t  minuteBeep:1;
   uint16_t  spare:2;
 }) TimerData;
+#define IS_MANUAL_RESET_TIMER(idx) 0
 #endif
 
 enum Protocols {

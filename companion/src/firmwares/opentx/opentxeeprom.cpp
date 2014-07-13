@@ -19,7 +19,7 @@
 #define MAX_MIXERS(board, version)           (IS_ARM(board) ? 64 : 32)
 #define MAX_CHANNELS(board, version)         (IS_ARM(board) ? 32 : 16)
 #define MAX_EXPOS(board, version)            (IS_ARM(board) ? ((IS_TARANIS(board) && version >= 216) ? 64 : 32) : (IS_DBLRAM(board, version) ? 16 : 14))
-#define MAX_CUSTOM_SWITCHES(board, version)  (IS_ARM(board) ? 32 : (IS_DBLEEPROM(board, version) ? 15 : 12))
+#define MAX_CUSTOM_SWITCHES(board, version)  (IS_ARM(board) ? 32 : ((IS_DBLEEPROM(board, version) && version<217) ? 15 : 12))
 #define MAX_CUSTOM_FUNCTIONS(board, version) (IS_ARM(board) ? (version >= 216 ? 64 : 32) : (IS_DBLEEPROM(board, version) ? 24 : 16))
 #define MAX_CURVES(board, version)           (IS_ARM(board) ? ((IS_TARANIS(board) && version >= 216) ? 32 : 16) : O9X_MAX_CURVES)
 #define MAX_GVARS(board, version)            ((IS_ARM(board) && version >= 216) ? 9 : 5)
@@ -867,8 +867,8 @@ class MixField: public TransformedField {
         internalField.Append(new SpareBitsField<8>());
       }
       else if (IS_ARM(board) && version >= 216) {
-        internalField.Append(new UnsignedField<4>(_destCh));
-        internalField.Append(new UnsignedField<4>(mix.mixWarn));
+        internalField.Append(new UnsignedField<5>(_destCh));
+        internalField.Append(new UnsignedField<3>(mix.mixWarn));
         internalField.Append(new UnsignedField<16>(mix.phases));
         internalField.Append(new BoolField<1>(_curveMode));
         internalField.Append(new BoolField<1>(mix.noExpo));
@@ -1016,7 +1016,7 @@ class MixField: public TransformedField {
 
       if (mix.srcRaw.type != SOURCE_TYPE_NONE) {
         mix.destCh = _destCh + 1;
-        if (!IS_ARM(board) || version < 216) {
+        if (!IS_TARANIS(board) || version < 216) {
           if (!_curveMode)
             mix.curve = CurveReference(CurveReference::CURVE_REF_DIFF, smallGvarToC9x(_curveParam));
           else if (_curveParam > 6)
@@ -2061,6 +2061,10 @@ class AvrCustomFunctionField: public TransformedField {
         if (version >= 216) {
           fn.func = AssignFunc(fn.func + (_union_param >> 2));
           fn.adjustMode = (_union_param & 0x03);
+          if (fn.adjustMode == 1)
+            sourcesConversionTable->importValue(_param, (int &)fn.param);
+          else if (fn.adjustMode == 2)
+            fn.param = RawSource(SOURCE_TYPE_GVAR, _param).toValue();
         }
         else if (version >= 213) {
           fn.adjustMode = ((_active >> 1) & 0x03);
@@ -2395,8 +2399,8 @@ OpenTxModelData::OpenTxModelData(ModelData & modelData, BoardEnum board, unsigne
       internalField.Append(new UnsignedField<16>(modelData.timers[i].val));
       internalField.Append(new UnsignedField<2>(modelData.timers[i].countdownBeep));
       internalField.Append(new BoolField<1>(modelData.timers[i].minuteBeep));
-      internalField.Append(new BoolField<1>(modelData.timers[i].persistent));
-      internalField.Append(new SpareBitsField<4>());
+      internalField.Append(new UnsignedField<2>(modelData.timers[i].persistent));
+      internalField.Append(new SpareBitsField<3>());
       internalField.Append(new SignedField<16>(modelData.timers[i].pvalue));
     }
     else if (afterrelease21March2013) {
@@ -2404,7 +2408,7 @@ OpenTxModelData::OpenTxModelData(ModelData & modelData, BoardEnum board, unsigne
       internalField.Append(new BoolField<1>((bool &)modelData.timers[i].countdownBeep));
       internalField.Append(new BoolField<1>(modelData.timers[i].minuteBeep));
       if (HAS_PERSISTENT_TIMERS(board)) {
-        internalField.Append(new BoolField<1>(modelData.timers[i].persistent));
+        internalField.Append(new UnsignedField<1>(modelData.timers[i].persistent));
         internalField.Append(new SpareBitsField<1>());
         internalField.Append(new SignedField<16>(modelData.timers[i].pvalue));
       }
@@ -2415,7 +2419,7 @@ OpenTxModelData::OpenTxModelData(ModelData & modelData, BoardEnum board, unsigne
     else {
       internalField.Append(new UnsignedField<16>(modelData.timers[i].val));
       if (HAS_PERSISTENT_TIMERS(board)) {
-        internalField.Append(new BoolField<1>(modelData.timers[i].persistent));
+        internalField.Append(new UnsignedField<1>(modelData.timers[i].persistent));
         internalField.Append(new SpareBitsField<15>());
       }
     }
@@ -2800,10 +2804,12 @@ void OpenTxGeneralData::beforeExport()
       sum += generalData.calibSpanPos[i];
       if (++count == 12) break;
     }
-    for (int i=0; i<4; i++) {
-      potsType[i] = generalData.potsType[i];
-      if (i<2 && potsType[i] == 1)
-        potsType[i] = 0;
+    if (IS_TARANIS(board)) {
+      for (int i=0; i<4; i++) {
+        potsType[i] = generalData.potsType[i];
+        if (i<2 && potsType[i] == 1)
+          potsType[i] = 0;
+      }
     }
   }
   else {
@@ -2817,9 +2823,11 @@ void OpenTxGeneralData::beforeExport()
 
 void OpenTxGeneralData::afterImport()
 {
-  for (int i=0; i<4; i++) {
-    generalData.potsType[i] = potsType[i];
-    if (i<2 && potsType[i] == 0)
-      generalData.potsType[i] = 1;
+  if (IS_TARANIS(board)) {
+    for (int i=0; i<4; i++) {
+      generalData.potsType[i] = potsType[i];
+      if (i<2 && potsType[i] == 0)
+        generalData.potsType[i] = 1;
+    }
   }
 }

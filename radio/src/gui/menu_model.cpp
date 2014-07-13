@@ -935,7 +935,7 @@ enum menuModelSetupItems {
 
 #if LCD_W >= 212
   #define MODEL_SETUP_2ND_COLUMN        (LCD_W-17*FW-MENUS_SCROLLBAR_WIDTH)
-  #define MODEL_SETUP_BIND_OFS          3*FW
+  #define MODEL_SETUP_BIND_OFS          3*FW-2
   #define MODEL_SETUP_RANGE_OFS         7*FW
   #define MODEL_SETUP_SET_FAILSAFE_OFS  10*FW
 #else
@@ -1142,7 +1142,7 @@ void menuModelSetup(uint8_t event)
       case ITEM_MODEL_TIMER2_PERSISTENT:
       {
         TimerData &timer = g_model.timers[k==ITEM_MODEL_TIMER2_PERSISTENT];
-        timer.persistent = onoffMenuItem(timer.persistent, MODEL_SETUP_2ND_COLUMN, y, STR_PERSISTENT, attr, event);
+        timer.persistent = selectMenuItem(MODEL_SETUP_2ND_COLUMN, y, STR_PERSISTENT, STR_VPERSISTENT, timer.persistent, 0, 2, attr, event);
         break;
       }
 #endif
@@ -1879,17 +1879,17 @@ enum FlightModesItems {
 
 bool isTrimModeAvailable(int mode)
 {
-  return (mode == TRIM_MODE_NONE || (mode%2) == 0 || (mode/2) != (m_posVert-1));
+  return (mode < 0 || (mode%2) == 0 || (mode/2) != (m_posVert-1));
 }
 
 void menuModelFlightModesAll(uint8_t event)
 {
-  MENU(STR_MENUFLIGHTPHASES, menuTabModel, e_FlightModesAll, 1+MAX_FLIGHT_MODES+1, {0, NAVIGATION_LINE_BY_LINE|(ITEM_FLIGHT_MODES_LAST-5), NAVIGATION_LINE_BY_LINE|ITEM_FLIGHT_MODES_LAST, NAVIGATION_LINE_BY_LINE|ITEM_FLIGHT_MODES_LAST, NAVIGATION_LINE_BY_LINE|NAVIGATION_LINE_BY_LINE|ITEM_FLIGHT_MODES_LAST, NAVIGATION_LINE_BY_LINE|ITEM_FLIGHT_MODES_LAST, NAVIGATION_LINE_BY_LINE|ITEM_FLIGHT_MODES_LAST, NAVIGATION_LINE_BY_LINE|ITEM_FLIGHT_MODES_LAST, NAVIGATION_LINE_BY_LINE|ITEM_FLIGHT_MODES_LAST, NAVIGATION_LINE_BY_LINE|ITEM_FLIGHT_MODES_LAST, 0});
+  MENU(STR_MENUFLIGHTPHASES, menuTabModel, e_FlightModesAll, 1+MAX_FLIGHT_MODES+1, {0, NAVIGATION_LINE_BY_LINE|(ITEM_FLIGHT_MODES_LAST-1), NAVIGATION_LINE_BY_LINE|ITEM_FLIGHT_MODES_LAST, NAVIGATION_LINE_BY_LINE|ITEM_FLIGHT_MODES_LAST, NAVIGATION_LINE_BY_LINE|NAVIGATION_LINE_BY_LINE|ITEM_FLIGHT_MODES_LAST, NAVIGATION_LINE_BY_LINE|ITEM_FLIGHT_MODES_LAST, NAVIGATION_LINE_BY_LINE|ITEM_FLIGHT_MODES_LAST, NAVIGATION_LINE_BY_LINE|ITEM_FLIGHT_MODES_LAST, NAVIGATION_LINE_BY_LINE|ITEM_FLIGHT_MODES_LAST, NAVIGATION_LINE_BY_LINE|ITEM_FLIGHT_MODES_LAST, 0});
 
   int8_t sub = m_posVert - 1;
 
   horzpos_t posHorz = m_posHorz;
-  if (sub==0 && posHorz > 0) { posHorz += 5; }
+  if (sub==0 && posHorz > 0) { posHorz += 1; }
 
   if (sub<MAX_FLIGHT_MODES && posHorz>=0) {
     displayColumnHeader(STR_PHASES_HEADERS, posHorz);
@@ -1903,8 +1903,25 @@ void menuModelFlightModesAll(uint8_t event)
       // last line available - add the "check trims" line
       lcd_putsLeft((LCD_LINES-1)*FH+1, STR_CHECKTRIMS);
       putsFlightMode(OFS_CHECKTRIMS, (LCD_LINES-1)*FH+1, mixerCurrentFlightMode+1);
-      if (sub==MAX_FLIGHT_MODES && !trimsCheckTimer) {
-        lcd_status_line();
+      if (sub==MAX_FLIGHT_MODES) {
+        if (!trimsCheckTimer) {
+          if (event == EVT_KEY_FIRST(KEY_ENTER)) {
+            trimsCheckTimer = 200; // 2 seconds trims cancelled
+            s_editMode = 1;
+            killEvents(event);
+          }
+          else {
+            lcd_status_line();
+            s_editMode = 0;
+          }
+        }
+        else {
+          if (event == EVT_KEY_FIRST(KEY_EXIT)) {
+            trimsCheckTimer = 0;
+            s_editMode = 0;
+            killEvents(event);
+          }
+        }
       }
       return;
     }
@@ -1922,28 +1939,24 @@ void menuModelFlightModesAll(uint8_t event)
           break;
 
         case ITEM_FLIGHT_MODES_SWITCH:
-          if (k == 0) {
-            lcd_puts((5+LEN_FP_NAME)*FW, y, STR_DEFAULT);
-          }
-          else {
-            putsSwitches((5+LEN_FP_NAME)*FW+FW/2, y, p->swtch, attr);
-            if (active) CHECK_INCDEC_MODELSWITCH(event, p->swtch, SWSRC_FIRST_SHORT_LIST, SWSRC_LAST_SHORT_LIST);
-          }
+          putsSwitches((5+LEN_FP_NAME)*FW+FW/2, y, p->swtch, attr);
+          if (active) CHECK_INCDEC_MODELSWITCH(event, p->swtch, SWSRC_FIRST_SHORT_LIST, SWSRC_LAST_SHORT_LIST);
           break;
 
         case ITEM_FLIGHT_MODES_TRIM_RUD:
         case ITEM_FLIGHT_MODES_TRIM_ELE:
         case ITEM_FLIGHT_MODES_TRIM_THR:
         case ITEM_FLIGHT_MODES_TRIM_AIL:
-          if (k != 0) {
-            uint8_t t = j-ITEM_FLIGHT_MODES_TRIM_RUD;
-            putsTrimMode((4+LEN_FP_NAME)*FW+j*(5*FW/2), y, k, t, attr);
-            if (active) {
-              trim_t & v = p->trim[t];
-              v.mode = checkIncDec(event, v.mode==TRIM_MODE_NONE ? -1 : v.mode, -1, 2*MAX_FLIGHT_MODES-1, EE_MODEL, isTrimModeAvailable);
-            }
+        {
+          uint8_t t = j-ITEM_FLIGHT_MODES_TRIM_RUD;
+          putsTrimMode((4+LEN_FP_NAME)*FW+j*(5*FW/2), y, k, t, attr);
+          if (active) {
+            trim_t & v = p->trim[t];
+            v.mode = checkIncDec(event, v.mode==TRIM_MODE_NONE ? -1 : v.mode, -1, k==0 ? 0 : 2*MAX_FLIGHT_MODES-1, EE_MODEL, isTrimModeAvailable);
           }
           break;
+        }
+
         case ITEM_FLIGHT_MODES_FADE_IN:
           lcd_outdezAtt(32*FW-2, y, (10/DELAY_STEP)*p->fadeIn, attr|PREC1);
           if (active) p->fadeIn = checkIncDec(event, p->fadeIn, 0, DELAY_MAX, EE_MODEL|NO_INCDEC_MARKS);
@@ -2165,11 +2178,7 @@ void menuModelFlightModesAll(uint8_t event)
 #endif
     att = (i==sub ? INVERS : 0);
     FlightModeData *p = flightModeAddress(i);
-#if ROTARY_ENCODERS > 2
-    putsFlightMode(0, y, i+1, att|CONDENSED|(getFlightMode()==i ? BOLD : 0));
-#else
     putsFlightMode(0, y, i+1, att|(getFlightMode()==i ? BOLD : 0));
-#endif
 
     lcd_putsnAtt(4*FW+NAME_OFS, y, p->name, sizeof(p->name), ZCHAR);
     if (i == 0) {
@@ -4909,7 +4918,7 @@ void menuModelLogicalSwitches(uint8_t event)
 #if LCD_W >= 212
   #define MODEL_CUSTOM_FUNC_1ST_COLUMN          (4*FW+2)
   #define MODEL_CUSTOM_FUNC_2ND_COLUMN          (8*FW+2)
-  #define MODEL_CUSTOM_FUNC_3RD_COLUMN          (20*FW)
+  #define MODEL_CUSTOM_FUNC_3RD_COLUMN          (21*FW)
   #define MODEL_CUSTOM_FUNC_4TH_COLUMN          (33*FW-3)
   #define MODEL_CUSTOM_FUNC_4TH_COLUMN_ONOFF    (34*FW-3)
 #else
@@ -5059,10 +5068,13 @@ void menuModelCustomFunctions(uint8_t event)
         case 2:
         {
           int8_t maxParam = NUM_CHNOUT-1;
+#if defined(SAFETY_CHANNEL_FUNCTION)
           if (func == FUNC_SAFETY_CHANNEL) {
             putsChn(lcdNextPos, y, CFN_CH_INDEX(sd)+1, attr);
           }
-          else if (func == FUNC_TRAINER) {
+          else
+#endif
+          if (func == FUNC_TRAINER) {
             maxParam = 4;
 #if defined(CPUARM)
             putsMixerSource(lcdNextPos, y, CFN_CH_INDEX(sd)==0 ? 0 : MIXSRC_Rud+CFN_CH_INDEX(sd)-1, attr);
@@ -5104,11 +5116,17 @@ void menuModelCustomFunctions(uint8_t event)
           int8_t val_min = 0;
           uint8_t val_max = 255;
 #endif
-          if (func == FUNC_SAFETY_CHANNEL) {
+          if (func == FUNC_RESET) {
+            val_max = FUNC_RESET_PARAM_LAST;
+            lcd_putsiAtt(MODEL_CUSTOM_FUNC_3RD_COLUMN, y, STR_VFSWRESET, CFN_PARAM(sd), attr);
+          }
+#if defined(SAFETY_CHANNEL_FUNCTION)
+          else if (func == FUNC_SAFETY_CHANNEL) {
             val_displayed = (int8_t)CFN_PARAM(sd);
             val_min = -125; val_max = 125;
             lcd_outdezAtt(MODEL_CUSTOM_FUNC_3RD_COLUMN, y, val_displayed, attr|LEFT);
           }
+#endif
 #if defined(CPUARM)
           else if (func == FUNC_SET_TIMER) {
             val_max = 59*60+59;
@@ -5220,10 +5238,6 @@ void menuModelCustomFunctions(uint8_t event)
             val_max = 100;
           }
 #endif
-          else if (func == FUNC_RESET) {
-            val_max = FUNC_RESET_PARAM_LAST;
-            lcd_putsiAtt(MODEL_CUSTOM_FUNC_3RD_COLUMN, y, STR_VFSWRESET, CFN_PARAM(sd), attr);
-          }
 #if defined(GVARS)
           else if (func == FUNC_ADJUST_GVAR) {
             switch (CFN_GVAR_MODE(sd)) {
@@ -5599,9 +5613,17 @@ enum menuModelTelemetryItems {
   #define IF_FAS_OFFSET(x) 
 #endif
 
+#if defined(PCBTARANIS)
+  #define TELEMETRY_TYPE_ROWS  (g_model.moduleData[INTERNAL_MODULE].rfProtocol == RF_PROTO_OFF && g_model.externalModule == MODULE_TYPE_PPM) ? (uint8_t)0 : HIDDEN_ROW,
+#elif defined(CPUARM)
+  #define TELEMETRY_TYPE_ROWS  0,
+#else
+  #define TELEMETRY_TYPE_ROWS
+#endif
+
 void menuModelTelemetry(uint8_t event)
 {
-  MENU(STR_MENUTELEMETRY, menuTabModel, e_Telemetry, ITEM_TELEMETRY_MAX+1, {0, CASE_CPUARM(0) CHANNEL_ROWS, CHANNEL_ROWS, CASE_CPUARM(CHANNEL_ROWS) CASE_CPUARM(CHANNEL_ROWS) RSSI_ROWS, USRDATA_LINES 0, 0, IF_FAS_OFFSET(0) CASE_CPUARM(0) CASE_VARIO(LABEL(Vario)) CASE_VARIO(0) CASE_VARIO(VARIO_RANGE_ROWS) CASE_PCBTARANIS(LABEL(TopBar)) CASE_PCBTARANIS(0) SCREEN_TYPE_ROWS, 2, 2, 2, 2, SCREEN_TYPE_ROWS, 2, 2, 2, 2, CASE_CPUARM(SCREEN_TYPE_ROWS) CASE_CPUARM(2) CASE_CPUARM(2) CASE_CPUARM(2) CASE_CPUARM(2)});
+  MENU(STR_MENUTELEMETRY, menuTabModel, e_Telemetry, ITEM_TELEMETRY_MAX+1, {0, TELEMETRY_TYPE_ROWS CHANNEL_ROWS, CHANNEL_ROWS, CASE_CPUARM(CHANNEL_ROWS) CASE_CPUARM(CHANNEL_ROWS) RSSI_ROWS, USRDATA_LINES 0, 0, IF_FAS_OFFSET(0) CASE_CPUARM(0) CASE_VARIO(LABEL(Vario)) CASE_VARIO(0) CASE_VARIO(VARIO_RANGE_ROWS) CASE_PCBTARANIS(LABEL(TopBar)) CASE_PCBTARANIS(0) SCREEN_TYPE_ROWS, 2, 2, 2, 2, SCREEN_TYPE_ROWS, 2, 2, 2, 2, CASE_CPUARM(SCREEN_TYPE_ROWS) CASE_CPUARM(2) CASE_CPUARM(2) CASE_CPUARM(2) CASE_CPUARM(2)});
 
   uint8_t sub = m_posVert - 1;
 
@@ -5620,6 +5642,13 @@ void menuModelTelemetry(uint8_t event)
   for (uint8_t i=0; i<LCD_LINES-1; i++) {
     uint8_t y = 1 + 1*FH + i*FH;
     uint8_t k = i + s_pgOfs;
+#if defined(CPUARM)
+    for (int j=0; j<=k; j++) {
+      if (mstate_tab[j+1] == HIDDEN_ROW)
+        k++;
+    }
+#endif
+
     uint8_t blink = ((s_editMode>0) ? BLINK|INVERS : INVERS);
     uint8_t attr = (sub == k ? blink : 0);
 #if defined(CPUARM)

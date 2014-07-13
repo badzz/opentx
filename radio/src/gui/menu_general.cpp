@@ -229,16 +229,16 @@ void menuGeneralSetup(uint8_t event)
 #if defined(RTCLOCK)
       case ITEM_SETUP_DATE:
         lcd_putsLeft(y, STR_DATE);
-        lcd_putc(RADIO_SETUP_DATE_COLUMN, y, '-'); lcd_putc(RADIO_SETUP_DATE_COLUMN+3*FW-1, y, '-');
+        lcd_putc(RADIO_SETUP_DATE_COLUMN+2, y, '-'); lcd_putc(RADIO_SETUP_DATE_COLUMN+3*FW, y, '-');
         for (uint8_t j=0; j<3; j++) {
           uint8_t rowattr = (m_posHorz==j ? attr : 0);
           switch (j) {
             case 0:
-              lcd_outdezAtt(RADIO_SETUP_DATE_COLUMN, y, t.tm_year+1900, rowattr);
+              lcd_outdezAtt(RADIO_SETUP_DATE_COLUMN+2, y, t.tm_year+1900, rowattr);
               if (rowattr && (s_editMode>0 || p1valdiff)) t.tm_year = checkIncDec(event, t.tm_year, 112, 200, 0);
               break;
             case 1:
-              lcd_outdezNAtt(RADIO_SETUP_DATE_COLUMN+3*FW-1, y, t.tm_mon+1, rowattr|LEADING0, 2);
+              lcd_outdezNAtt(RADIO_SETUP_DATE_COLUMN+3*FW, y, t.tm_mon+1, rowattr|LEADING0, 2);
               if (rowattr && (s_editMode>0 || p1valdiff)) t.tm_mon = checkIncDec(event, t.tm_mon, 0, 11, 0);
               break;
             case 2:
@@ -746,7 +746,7 @@ void backupEeprom()
 
   // prepare the filename...
   char * tmp = strAppend(filename, EEPROMS_PATH "/eeprom");
-  tmp = strAppendDate(tmp);
+  tmp = strAppendDate(tmp, true);
   strAppend(tmp, EEPROM_EXT);
 
   // open the file for writing...
@@ -1286,11 +1286,11 @@ void menuGeneralDiagKeys(uint8_t event)
 void menuGeneralDiagAna(uint8_t event)
 {
 #if defined(PCBSKY9X) && !defined(REVA)
-#define ANAS_ITEMS_COUNT 4
+  #define ANAS_ITEMS_COUNT 4
 #elif defined(PCBSKY9X)
-#define ANAS_ITEMS_COUNT 3
+  #define ANAS_ITEMS_COUNT 3
 #else
-#define ANAS_ITEMS_COUNT 2
+  #define ANAS_ITEMS_COUNT 2
 #endif
 
   SIMPLE_MENU(STR_MENUANA, menuTabDiag, e_Ana, ANAS_ITEMS_COUNT);
@@ -1397,7 +1397,7 @@ void menuGeneralHardware(uint8_t event)
       case ITEM_SETUP_HW_UART3_MODE:
       	g_eeGeneral.uart3Mode = selectMenuItem(HW_SETTINGS_COLUMN, y, STR_UART3MODE, STR_UART3MODES, g_eeGeneral.uart3Mode, 0, UART_MODE_MAX, attr, event);
         if (checkIncDec_Ret) {
-      	  uart3Init(g_eeGeneral.uart3Mode, g_model.telemetryProtocol);
+      	  uart3Init(g_eeGeneral.uart3Mode, MODEL_TELEMETRY_PROTOCOL);
       	}
         break;
     }

@@ -91,6 +91,9 @@
 #define LEN_VLCD               "\006"
 #define TR_VLCD                "Normal""Optrex"
 
+#define LEN_VPERSISTENT        "\014"
+#define TR_VPERSISTENT         "OFF\0        ""Flight\0     ""Manual Reset"
+
 #define LEN_COUNTRYCODES       TR("\002", "\007")
 #define TR_COUNTRYCODES        TR("US""JP""EU", "Amerika""Japan\0 ""Europa\0")
 
@@ -256,19 +259,25 @@
 #endif
 
 #if defined(DEBUG)
-  #define TR_CFN_TEST          "Test\0"
+  #define TR_CFN_TEST          "Test\0     "
 #else
   #define TR_CFN_TEST
+#endif
+
+#if defined(SAFETY_CHANNEL_FUNCTION)
+  #define TR_CFN_SAFETY        "Sicher\0   "
+#else
+  #define TR_CFN_SAFETY        "---\0      "
 #endif
 
 #define TR_CFN_RESERVE         "[Reserve]\0"
 
 #if defined(CPUARM)
-  #define TR_VFSWFUNC          "Sicher\0   ""Lehrer \0  ""Inst. Trim""Rücksetz.\0""Setze \0   " TR_ADJUST_GVAR "Lautstr.\0 " TR_CFN_RESERVE TR_CFN_RESERVE TR_CFN_RESERVE TR_SOUND TR_PLAY_TRACK TR_PLAY_VALUE TR_CFN_RESERVE TR_CFN_PLAY_SCRIPT TR_CFN_RESERVE TR_CFN_BG_MUSIC TR_VVARIO TR_HAPTIC TR_SDCLOGS "LCD Licht\0" TR_CFN_TEST 
+  #define TR_VFSWFUNC          TR_CFN_SAFETY "Lehrer \0  ""Inst. Trim""Rücksetz.\0""Setze \0   " TR_ADJUST_GVAR "Lautstr.\0 " TR_CFN_RESERVE TR_CFN_RESERVE TR_CFN_RESERVE TR_SOUND TR_PLAY_TRACK TR_PLAY_VALUE TR_CFN_RESERVE TR_CFN_PLAY_SCRIPT TR_CFN_RESERVE TR_CFN_BG_MUSIC TR_VVARIO TR_HAPTIC TR_SDCLOGS "LCD Licht\0" TR_CFN_TEST 
 #elif defined(PCBGRUVIN9X)
-  #define TR_VFSWFUNC          "Sicher\0   ""Lehrer \0  ""Inst. Trim""Rücksetz.\0" TR_ADJUST_GVAR TR_SOUND TR_PLAY_TRACK TR_PLAY_BOTH TR_PLAY_VALUE TR_VVARIO TR_HAPTIC TR_SDCLOGS "LCD Licht\0" TR_CFN_TEST
+  #define TR_VFSWFUNC          TR_CFN_SAFETY "Lehrer \0  ""Inst. Trim""Rücksetz.\0" TR_ADJUST_GVAR TR_SOUND TR_PLAY_TRACK TR_PLAY_BOTH TR_PLAY_VALUE TR_VVARIO TR_HAPTIC TR_SDCLOGS "LCD Licht\0" TR_CFN_TEST
 #else
-  #define TR_VFSWFUNC          "Sicher\0   ""Lehrer \0  ""Inst. Trim""Rücksetz.\0" TR_ADJUST_GVAR TR_SOUND TR_PLAY_TRACK TR_PLAY_BOTH TR_PLAY_VALUE TR_VVARIO TR_HAPTIC "LCD Licht\0" TR_CFN_TEST
+  #define TR_VFSWFUNC          TR_CFN_SAFETY "Lehrer \0  ""Inst. Trim""Rücksetz.\0" TR_ADJUST_GVAR TR_SOUND TR_PLAY_TRACK TR_PLAY_BOTH TR_PLAY_VALUE TR_VVARIO TR_HAPTIC "LCD Licht\0" TR_CFN_TEST
 #endif
 
 #define LEN_VFSWRESET          TR("\004", "\011")
@@ -414,8 +423,6 @@
 
 #if defined(CPUARM)
   #define TR_LOGICALSW          "L1\0""L2\0""L3\0""L4\0""L5\0""L6\0""L7\0""L8\0""L9\0""L10""L11""L12""L13""L14""L15""L16""L17""L18""L19""L20""L21""L22""L23""L24""L25""L26""L27""L28""L29""L30""L31""L32"
-#elif defined(PCBGRUVIN9X) || defined(CPUM2561) || defined(CPUM128)
-  #define TR_LOGICALSW          "L1\0""L2\0""L3\0""L4\0""L5\0""L6\0""L7\0""L8\0""L9\0""L10""L11""L12""L13""L14""L15"
 #else
   #define TR_LOGICALSW          "L1\0""L2\0""L3\0""L4\0""L5\0""L6\0""L7\0""L8\0""L9\0""L10""L11""L12"
 #endif
@@ -479,8 +486,14 @@
   #define TR_ENTER             "[MENU]"
 #endif
 
-#define TR_POPUPS              TR_ENTER"\010[EXIT]"
-#define OFS_EXIT               sizeof(TR_ENTER)
+#define TR_EXIT                "[EXIT]"
+
+#if defined(PCBTARANIS)
+  #define TR_POPUPS            TR_EXIT "\010" "\010" "\010" "\010" TR_ENTER
+#else
+  #define TR_POPUPS            TR_ENTER "\010" TR_EXIT
+  #define OFS_EXIT             sizeof(TR_ENTER)
+#endif
 
 #define TR_MENUWHENDONE        CENTER"\010"TR_ENTER" > Weiter"
 #define TR_FREE                "frei"
@@ -814,6 +827,7 @@
 #define TR_INPUTS              "Inputs"
 #define TR_OUTPUTS             "Outputs"
 #define TR_EEBACKUP            "\004[ENTER Long] to backup the EEPROM"
+#define TR_TO_MANY_LUA_SCRIPTS "Too many Lua scripts!"
 
 #if defined(MAVLINK)
   #define TR_MAVLINK_RC_RSSI_SCALE_LABEL   "Max RSSI"

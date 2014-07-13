@@ -46,10 +46,12 @@ void menuStatisticsView(uint8_t event)
       chainMenu(menuStatisticsDebug);
       return;
 
-#if defined(PCBTARANIS)
+#if defined(CPUARM)
     case EVT_KEY_LONG(KEY_MENU):
       g_eeGeneral.globalTimer = 0;
-    	break;
+      eeDirty(EE_GENERAL);
+      sessionTimer = 0;
+      break;
 #endif
     case EVT_KEY_FIRST(KEY_EXIT):
       chainMenu(menuMainView);
@@ -63,10 +65,10 @@ void menuStatisticsView(uint8_t event)
   putsTimer(    5*FW+5*FWNUM+1, FH*2, s_timeCumThr, 0, 0);
   putsTimer(   12*FW+5*FWNUM+1, FH*2, s_timeCum16ThrP/16, 0, 0);
 
-  putsTimer(   12*FW+5*FWNUM+1, FH*0, s_timeCumTot, 0, 0);
+  putsTimer(   12*FW+5*FWNUM+1, FH*0, sessionTimer, 0, 0);
   
-#if defined(PCBTARANIS)
-  putsTimer(21*FW+5*FWNUM+1, 0*FH, g_eeGeneral.globalTimer + sessionTimer, 0, 0);
+#if defined(CPUARM)
+  putsTimer(21*FW+5*FWNUM+1, 0*FH, g_eeGeneral.globalTimer + sessionTimer, TIMEHOUR, 0);
 #endif
 
 #if defined(THRTRACE)
@@ -155,7 +157,6 @@ void menuStatisticsDebug(uint8_t event)
   // consumption
   lcd_putsLeft(2*FH, STR_CPU_MAH);
   putsTelemetryValue(MENU_DEBUG_COL1_OFS, 2*FH, g_eeGeneral.mAhUsed + Current_used*current_scale/8192/36, UNIT_MAH, LEFT|PREC1);
-  putsTimer(MENU_DEBUG_COL2_OFS, 2*FH, g_eeGeneral.globalTimer + sessionTimer, LEFT, 0);
 #endif
 
 #if defined(PCBSKY9X)
@@ -185,12 +186,12 @@ void menuStatisticsDebug(uint8_t event)
 
 #if defined(PCBTARANIS) && !defined(SIMU)
   lcd_putsLeft(3*FH, "Free Mem");
-  lcd_outdezAtt(MENU_DEBUG_COL1_OFS, 3*FH, 0x20020000 - (unsigned int)heap, LEFT);
+  lcd_outdezAtt(MENU_DEBUG_COL1_OFS, 3*FH, getAvailableMemory(), LEFT);
 #endif
 
 #if defined(LUA)
   lcd_putsLeft(4*FH, "Lua scripts");
-  lcd_putsAtt(MENU_DEBUG_COL1_OFS-1, 4*FH+1, "[Duration]", SMLSIZE);
+  lcd_putsAtt(MENU_DEBUG_COL1_OFS, 4*FH+1, "[Duration]", SMLSIZE);
   lcd_outdezAtt(lcdLastPos, 4*FH, 10*maxLuaDuration, LEFT);
   lcd_putsAtt(lcdLastPos+2, 4*FH+1, "[Interval]", SMLSIZE);
   lcd_outdezAtt(lcdLastPos, 4*FH, 10*maxLuaInterval, LEFT);
@@ -203,7 +204,7 @@ void menuStatisticsDebug(uint8_t event)
   lcd_putsLeft(6*FH, STR_FREESTACKMINB);
 
 #if LCD_W >= 212
-  lcd_putsAtt(MENU_DEBUG_COL1_OFS-1, 6*FH+1, "[Main]", SMLSIZE);
+  lcd_putsAtt(MENU_DEBUG_COL1_OFS, 6*FH+1, "[Main]", SMLSIZE);
   lcd_outdezAtt(lcdLastPos, 6*FH, stack_free(0), UNSIGN|LEFT);
   lcd_putsAtt(lcdLastPos+2, 6*FH+1, "[Mix]", SMLSIZE);
   lcd_outdezAtt(lcdLastPos, 6*FH, stack_free(1), UNSIGN|LEFT);

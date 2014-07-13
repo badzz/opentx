@@ -64,8 +64,8 @@
 #include "helpers.h"
 #include "appdata.h"
 #include "radionotfound.h"
-#include "firmwares/opentx/opentxinterface.h" // TODO get rid of this include
 
+#define OPENTX_COMPANION_DOWNLOADS   "http://downloads-20.open-tx.org/companion"
 #define DONATE_STR      "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=QUZ48K4SEXDP2"
 
 #ifdef __APPLE__
@@ -632,7 +632,6 @@ void MainWindow::loadProfile()  //TODO Load all variables - Also HW!
       int profnum=action->data().toInt();
       g.id( profnum );
 
-      // TODO Get rid of this global variable - The profile.firmware is the real source
       current_firmware_variant = GetFirmware(g.profile[g.id()].fwType());
 
       foreach (QMdiSubWindow *window, mdiArea->subWindowList()) {
@@ -1328,7 +1327,7 @@ void MainWindow::writeFlash(QString fileToFlash)
         }
 
         if (readEepromFromRadio(backupFile, tr("Backup Models and Settings From Radio"))) {
-          sleep(1);
+          sleep(2);
           int res = writeFirmwareToRadio(fileName);
           if (res) {
             QString restoreFile = tempDir + "/restore.bin";
@@ -1336,7 +1335,7 @@ void MainWindow::writeFlash(QString fileToFlash)
               QMessageBox::warning(this, tr("Conversion failed"), tr("Cannot convert Models and Settings for use with this firmware, original data will be used"));
               restoreFile = backupFile;
             }
-            sleep(1);
+            sleep(2);
             if (!writeEepromToRadio(restoreFile, tr("Restore Models and Settings To Radio"))) {
               QMessageBox::warning(this, tr("Restore failed"), tr("Could not restore Models and Settings to Radio. The models and settings data file can be found at: %1").arg(backupFile));
             }
@@ -1362,6 +1361,7 @@ void MainWindow::writeFlash(QString fileToFlash)
           QDateTime datetime;
           QString backupFile = backupPath+"/backup-"+QDateTime().currentDateTime().toString("yyyy-MM-dd-hhmmss")+".bin";
           readEepromFromRadio(backupFile, tr("Backup Models and Settings From Radio"));
+          sleep(2);
         }
 
         writeFirmwareToRadio(fileName);

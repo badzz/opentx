@@ -91,6 +91,9 @@
 #define LEN_VLCD               "\006"
 #define TR_VLCD                "NormalOptrex"
 
+#define LEN_VPERSISTENT        "\014"
+#define TR_VPERSISTENT         "OFF\0        ""Flight\0     ""Manual Reset"
+
 #define LEN_COUNTRYCODES       TR("\002", "\007")
 #define TR_COUNTRYCODES        TR("US""JP""EU", "America""Japan\0 ""Europe\0")
 
@@ -261,14 +264,22 @@
   #define TR_CFN_TEST
 #endif
 
+#if defined(SAFETY_CHANNEL_FUNCTION) && LCD_W >= 212
+  #define TR_CFN_SAFETY        "Override\0 "
+#elif defined(SAFETY_CHANNEL_FUNCTION)
+  #define TR_CFN_SAFETY        "Safety\0   "
+#else
+  #define TR_CFN_SAFETY        "---\0      "
+#endif
+
 #define TR_CFN_RESERVE         "[reserve]\0"
 
 #if defined(CPUARM)
-  #define TR_VFSWFUNC          "Safety\0   ""Trainer\0  ""Inst. Trim""Reset\0    ""Set \0     " TR_ADJUST_GVAR "Volume\0   " TR_CFN_RESERVE TR_CFN_RESERVE TR_CFN_RESERVE TR_SOUND TR_PLAY_TRACK TR_PLAY_VALUE TR_CFN_RESERVE TR_CFN_PLAY_SCRIPT TR_CFN_RESERVE TR_CFN_BG_MUSIC TR_VVARIO TR_HAPTIC TR_SDCLOGS "Backlight\0" TR_CFN_TEST
+  #define TR_VFSWFUNC          TR_CFN_SAFETY "Trainer\0  ""Inst. Trim""Reset\0    ""Set \0     " TR_ADJUST_GVAR "Volume\0   " TR_CFN_RESERVE TR_CFN_RESERVE TR_CFN_RESERVE TR_SOUND TR_PLAY_TRACK TR_PLAY_VALUE TR_CFN_RESERVE TR_CFN_PLAY_SCRIPT TR_CFN_RESERVE TR_CFN_BG_MUSIC TR_VVARIO TR_HAPTIC TR_SDCLOGS "Backlight\0" TR_CFN_TEST
 #elif defined(PCBGRUVIN9X)
-  #define TR_VFSWFUNC          "Safety\0   ""Trainer\0  ""Inst. Trim""Reset\0    " TR_ADJUST_GVAR TR_SOUND TR_PLAY_TRACK TR_PLAY_BOTH TR_PLAY_VALUE TR_VVARIO TR_HAPTIC TR_SDCLOGS "Backlight\0" TR_CFN_TEST
+  #define TR_VFSWFUNC          TR_CFN_SAFETY "Trainer\0  ""Inst. Trim""Reset\0    " TR_ADJUST_GVAR TR_SOUND TR_PLAY_TRACK TR_PLAY_BOTH TR_PLAY_VALUE TR_VVARIO TR_HAPTIC TR_SDCLOGS "Backlight\0" TR_CFN_TEST
 #else
-  #define TR_VFSWFUNC          "Safety\0   ""Trainer\0  ""Inst. Trim""Reset\0    " TR_ADJUST_GVAR TR_SOUND TR_PLAY_TRACK TR_PLAY_BOTH TR_PLAY_VALUE TR_VVARIO TR_HAPTIC "Backlight\0" TR_CFN_TEST
+  #define TR_VFSWFUNC          TR_CFN_SAFETY "Trainer\0  ""Inst. Trim""Reset\0    " TR_ADJUST_GVAR TR_SOUND TR_PLAY_TRACK TR_PLAY_BOTH TR_PLAY_VALUE TR_VVARIO TR_HAPTIC "Backlight\0" TR_CFN_TEST
 #endif
 
 #define LEN_VFSWRESET          TR("\004", "\011")
@@ -414,8 +425,6 @@
 
 #if defined(CPUARM)
   #define TR_LOGICALSW          "L1\0""L2\0""L3\0""L4\0""L5\0""L6\0""L7\0""L8\0""L9\0""L10""L11""L12""L13""L14""L15""L16""L17""L18""L19""L20""L21""L22""L23""L24""L25""L26""L27""L28""L29""L30""L31""L32"
-#elif defined(PCBGRUVIN9X) || defined(CPUM2561) || defined(CPUM128)
-  #define TR_LOGICALSW          "L1\0""L2\0""L3\0""L4\0""L5\0""L6\0""L7\0""L8\0""L9\0""L10""L11""L12""L13""L14""L15"
 #else
   #define TR_LOGICALSW          "L1\0""L2\0""L3\0""L4\0""L5\0""L6\0""L7\0""L8\0""L9\0""L10""L11""L12"
 #endif
@@ -479,8 +488,14 @@
   #define TR_ENTER             "[MENU]"
 #endif
 
-#define TR_POPUPS              TR_ENTER "\010[EXIT]"
-#define OFS_EXIT               sizeof(TR_ENTER)
+#define TR_EXIT                "[EXIT]"
+
+#if defined(PCBTARANIS)
+  #define TR_POPUPS            TR_EXIT "\010" "\010" "\010" "\010" TR_ENTER
+#else
+  #define TR_POPUPS            TR_ENTER "\010" TR_EXIT
+  #define OFS_EXIT             sizeof(TR_ENTER)
+#endif
 
 #define TR_MENUWHENDONE        CENTER "\006" TR_ENTER " WHEN DONE"
 #define TR_FREE                "free"
@@ -585,7 +600,7 @@
 #define TR_POTWARNING          TR(IF_CPUARM(INDENT) "Pot Warn.", INDENT "Pot Positions")
 #define TR_TIMEZONE            TR("Time Zone", "GPS Time zone")
 #define TR_RXCHANNELORD        TR("Rx Channel Ord", "Default channel order")
-#define TR_SWITCHES_DELAY      "Play Delay (sw. mid pos)"
+#define TR_SWITCHES_DELAY      TR("Play delay","Play Delay (sw. mid pos)")
 #define TR_SLAVE               CENTER "Slave"
 #define TR_MODESRC             "Mode\006% Source"
 #define TR_MULTIPLIER          "Multiplier"
@@ -814,6 +829,7 @@
 #define TR_INPUTS              "Inputs"
 #define TR_OUTPUTS             "Outputs"
 #define TR_EEBACKUP            "\004[ENTER Long] to backup the EEPROM"
+#define TR_TO_MANY_LUA_SCRIPTS "Too many Lua scripts!"
 
 #if defined(MAVLINK)
   #define TR_MAVLINK_RC_RSSI_SCALE_LABEL  "Max RSSI"

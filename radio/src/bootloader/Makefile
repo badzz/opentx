@@ -163,16 +163,18 @@ SRC  =	../targets/taranis/STM32F2xx_StdPeriph_Lib_V1.1.0/Libraries/CMSIS/Device/
 	../targets/taranis/pwr_driver.c
 
 CPPSRC = ../targets/taranis/lcd_driver.cpp \
+	../targets/taranis/configure_pins.cpp \
 	../targets/taranis/keys_driver.cpp \
 	../targets/taranis/flash_driver.cpp \
 	../targets/taranis/diskio.cpp \
-        ../targets/taranis/usbd_usr.cpp \
-        ../targets/taranis/usbd_storage_msd.cpp \
-        ../lcd.cpp \
-        ../keys.cpp \
-        ../fonts.cpp \
-        ../strhelpers.cpp \
-        boot.cpp
+	../targets/taranis/usbd_usr.cpp \
+	../targets/taranis/usbd_storage_msd.cpp \
+	../lcd_common.cpp \
+	../lcd_taranis.cpp \
+	../keys.cpp \
+	../fonts.cpp \
+	../strhelpers.cpp \
+	boot.cpp
 
 # List ASM source files here
 ASRC = ../targets/taranis/STM32F2xx_StdPeriph_Lib_V1.1.0/Libraries/CMSIS/Device/ST/STM32F2xx/Source/Templates/gcc_ride7/startup_stm32f2xx.s
@@ -251,7 +253,7 @@ LIBS    = $(DLIBS) $(ULIBS)
 MCFLAGS = -mcpu=$(MCU)
 
 #ASFLAGS = $(MCFLAGS) -g -gdwarf-2 -Wa,-amhls=$(OBJDIR)/$(notdir $(<:.s=.lst)) $(ADEFS)
-CPFLAGS = $(MCFLAGS) $(OPT) -gdwarf-2 -mthumb -fomit-frame-pointer -Wall -Wstrict-prototypes -fverbose-asm $(DEFS)
+CPFLAGS = $(MCFLAGS) $(OPT) -fdata-sections -ffunction-sections  -gdwarf-2 -mthumb -fomit-frame-pointer -Wall -Wstrict-prototypes -fverbose-asm $(DEFS)
 LDFLAGS = $(MCFLAGS) -mthumb -nostartfiles -T$(LDSCRIPT) -Wl,-Map=$(FULL_PRJ).map,--cref,--no-warn-mismatch $(LIBDIR)
 CPPFLAGS = $(MCFLAGS) $(OPT) -gdwarf-2 -mthumb -fomit-frame-pointer -Wall -fverbose-asm $(DEFS)
 

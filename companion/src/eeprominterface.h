@@ -760,7 +760,7 @@ class FuncSwData { // Function Switches data
     unsigned int enabled; // TODO perhaps not any more the right name
     unsigned int adjustMode;
     int repeatParam;
-    void clear() { memset(this, 0, sizeof(FuncSwData)); }
+    void clear();
     QString funcToString();
     QString paramToString();
     QString repeatToString();
@@ -918,7 +918,7 @@ class TimerData {
     unsigned int countdownBeep;
     bool         dir;    // 0=>Count Down, 1=>Count Up
     unsigned int val;
-    bool         persistent;
+    unsigned int persistent;
     int          pvalue;
     void clear() { memset(this, 0, sizeof(TimerData)); mode = RawSwitch(SWITCH_TYPE_TIMER_MODE, 0); }
 };
@@ -954,6 +954,7 @@ class ModuleData {
     bool         ppmPulsePol;           // false = positive
     int          ppmFrameLength;
     void clear() { memset(this, 0, sizeof(ModuleData)); }
+    QString polarityToString() { return ppmPulsePol ? QObject::tr("Positive") : QObject::tr("Negative"); }
 };
 
 #define C9X_MAX_SCRIPTS       7
@@ -1063,6 +1064,7 @@ enum Capability {
   Timers,
   TimeDivisions,
   CustomFunctions,
+  SafetyChannelCustomFunction,
   VoicesAsNumbers,
   VoicesMaxLength,
   ModelVoice,

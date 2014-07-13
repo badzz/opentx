@@ -91,6 +91,9 @@
 #define LEN_VLCD               "\006"
 #define TR_VLCD                "NormalOptrex"
 
+#define LEN_VPERSISTENT        "\014"
+#define TR_VPERSISTENT         "OFF\0        ""Flight\0     ""Manual Reset"
+
 #define LEN_COUNTRYCODES       TR("\002", "\010")
 #define TR_COUNTRYCODES        TR("US""JP""EU", "Amerika\0""Japonsko""Evropa\0 ")
 
@@ -235,22 +238,22 @@
   #define TR_PLAY_VALUE        "[\221\222TTS]\0   "
 #endif
 
-#define TR_CFN_BG_MUSIC      "BgHudba\0   ""BgHudba ||\0"
+#define TR_CFN_BG_MUSIC        "BgHudba\0   ""BgHudba ||\0"
 
 #if defined(SDCARD)
-  #define TR_SDCLOGS         "Log na SD\0 "
+  #define TR_SDCLOGS           "Log na SD\0 "
 #else
-  #define TR_SDCLOGS         "[Logování]\0"
+  #define TR_SDCLOGS           "[Logování]\0"
 #endif
 
 #ifdef GVARS
-  #define TR_ADJUST_GVAR     "Nastav \0   "
+  #define TR_ADJUST_GVAR       "Nastav \0   "
 #else
-  #define TR_ADJUST_GVAR     "[AdjustGV]\0"
+  #define TR_ADJUST_GVAR       "[AdjustGV]\0"
 #endif
 
 #if defined(LUA)
-  #define TR_CFN_PLAY_SCRIPT   "Lua Script "
+  #define TR_CFN_PLAY_SCRIPT   "Lua Script\0"
 #else
   #define TR_CFN_PLAY_SCRIPT   "[Lua]\0     "
 #endif
@@ -261,14 +264,20 @@
   #define TR_CFN_TEST
 #endif
 
+#if defined(SAFETY_CHANNEL_FUNCTION)
+  #define TR_CFN_SAFETY        "Zámek \0    "
+#else
+  #define TR_CFN_SAFETY        "---\0       "
+#endif
+
 #define TR_CFN_RESERVE         "[rezerva]\0 "
 
 #if defined(CPUARM)
-  #define TR_VFSWFUNC          "Zámek \0    ""Trenér \0   ""Insta-Trim\0""Reset\0     ""Set \0      " TR_ADJUST_GVAR "Hlasitost\0 " TR_CFN_RESERVE TR_CFN_RESERVE TR_CFN_RESERVE TR_SOUND TR_PLAY_TRACK TR_PLAY_VALUE TR_CFN_RESERVE TR_CFN_PLAY_SCRIPT TR_CFN_RESERVE TR_CFN_BG_MUSIC TR_VVARIO TR_HAPTIC TR_SDCLOGS "Podsvětlení" TR_CFN_TEST
+  #define TR_VFSWFUNC          TR_CFN_SAFETY "Trenér \0   ""Insta-Trim\0""Reset\0     ""Set \0      " TR_ADJUST_GVAR "Hlasitost\0 " TR_CFN_RESERVE TR_CFN_RESERVE TR_CFN_RESERVE TR_SOUND TR_PLAY_TRACK TR_PLAY_VALUE TR_CFN_RESERVE TR_CFN_PLAY_SCRIPT TR_CFN_RESERVE TR_CFN_BG_MUSIC TR_VVARIO TR_HAPTIC TR_SDCLOGS "Podsvětlení" TR_CFN_TEST
 #elif defined(PCBGRUVIN9X)
-  #define TR_VFSWFUNC          "Zámek \0    ""Trenér \0   ""Insta-Trim\0""Reset\0     " TR_ADJUST_GVAR TR_SOUND TR_PLAY_TRACK TR_PLAY_BOTH TR_PLAY_VALUE TR_VVARIO TR_HAPTIC TR_SDCLOGS "Podsvětlení" TR_CFN_TEST
+  #define TR_VFSWFUNC          TR_CFN_SAFETY "Trenér \0   ""Insta-Trim\0""Reset\0     " TR_ADJUST_GVAR TR_SOUND TR_PLAY_TRACK TR_PLAY_BOTH TR_PLAY_VALUE TR_VVARIO TR_HAPTIC TR_SDCLOGS "Podsvětlení" TR_CFN_TEST
 #else
-  #define TR_VFSWFUNC          "Zámek \0    ""Trenér \0   ""Insta-Trim\0""Reset\0     " TR_ADJUST_GVAR TR_SOUND TR_PLAY_TRACK TR_PLAY_BOTH TR_PLAY_VALUE TR_VVARIO TR_HAPTIC "Podsvětlení" TR_CFN_TEST
+  #define TR_VFSWFUNC          TR_CFN_SAFETY "Trenér \0   ""Insta-Trim\0""Reset\0     " TR_ADJUST_GVAR TR_SOUND TR_PLAY_TRACK TR_PLAY_BOTH TR_PLAY_VALUE TR_VVARIO TR_HAPTIC "Podsvětlení" TR_CFN_TEST
 #endif
 
 #define LEN_VFSWRESET          TR("\004", "\012")
@@ -414,8 +423,6 @@
 
 #if defined(CPUARM)
   #define TR_LOGICALSW          "L1\0""L2\0""L3\0""L4\0""L5\0""L6\0""L7\0""L8\0""L9\0""L10""L11""L12""L13""L14""L15""L16""L17""L18""L19""L20""L21""L22""L23""L24""L25""L26""L27""L28""L29""L30""L31""L32"
-#elif defined(PCBGRUVIN9X) || defined(CPUM2561) || defined(CPUM128)
-  #define TR_LOGICALSW          "L1\0""L2\0""L3\0""L4\0""L5\0""L6\0""L7\0""L8\0""L9\0""L10""L11""L12""L13""L14""L15"
 #else
   #define TR_LOGICALSW          "L1\0""L2\0""L3\0""L4\0""L5\0""L6\0""L7\0""L8\0""L9\0""L10""L11""L12"
 #endif
@@ -479,10 +486,16 @@
   #define TR_ENTER             "[MENU]"
 #endif
 
-#define TR_POPUPS              TR_ENTER"\010[EXIT]"
-#define OFS_EXIT               sizeof(TR_ENTER)
+#define TR_EXIT                "[EXIT]"
 
-#define TR_MENUWHENDONE        CENTER "\011"TR_ENTER" > DALŠÍ"
+#if defined(PCBTARANIS)
+  #define TR_POPUPS            TR_EXIT "\010" "\010" "\010" "\010" TR_ENTER
+#else
+  #define TR_POPUPS            TR_ENTER "\010" TR_EXIT
+  #define OFS_EXIT             sizeof(TR_ENTER)
+#endif
+
+#define TR_MENUWHENDONE        CENTER "\011" TR_ENTER " > DALŠÍ"
 #define TR_FREE                TR("volné:", "volných")
 #define TR_DELETEMODEL         "SMAZAT MODEL"
 #define TR_COPYINGMODEL        "Kopíruji model.."
@@ -814,6 +827,7 @@
 #define TR_INPUTS              "Vstupy"
 #define TR_OUTPUTS             "Výstupy"
 #define TR_EEBACKUP            "\010[dlouze ENTER] zálohuje EEPROM"
+#define TR_TO_MANY_LUA_SCRIPTS "Too many Lua scripts!"
 
 #if defined(MAVLINK)
   #define TR_MAVLINK_RC_RSSI_SCALE_LABEL        "Max RSSI"

@@ -84,7 +84,9 @@ void FrskyValueWithMin::set(uint8_t value)
     this->value = value;
   }
   else {
-    unsigned int sum = 0;
+    //calculate the average from values[] and value
+    //also shift readings in values [] array
+    unsigned int sum = values[0];
     for (int i=0; i<TELEMETRY_AVERAGE_COUNT-1; i++) {
       uint8_t tmp = values[i+1];
       values[i] = tmp;
@@ -92,7 +94,7 @@ void FrskyValueWithMin::set(uint8_t value)
     }
     values[TELEMETRY_AVERAGE_COUNT-1] = value;
     sum += value;
-    this->value = sum/TELEMETRY_AVERAGE_COUNT;
+    this->value = sum/(TELEMETRY_AVERAGE_COUNT+1);
   }
 #else
   if (this->value == 0) {
@@ -277,8 +279,9 @@ enum AlarmsCheckSteps {
 void telemetryWakeup()
 {
 #if defined(CPUARM)
-  if (telemetryProtocol != g_model.telemetryProtocol) {
-    telemetryProtocol = g_model.telemetryProtocol;
+  uint8_t requiredTelemetryProtocol = MODEL_TELEMETRY_PROTOCOL;
+  if (telemetryProtocol != requiredTelemetryProtocol) {
+    telemetryProtocol = requiredTelemetryProtocol;
     telemetryInit();
   }
 #endif
@@ -427,9 +430,10 @@ void telemetryWakeup()
 
 void telemetryInterrupt10ms()
 {
+#if defined(CPUARM)
+  uint16_t voltage = frskyData.hub.cellsSum; /* unit: 1/10 volts */
+#elif defined(FRSKY_HUB)
   uint16_t voltage = 0; /* unit: 1/10 volts */
-
-#if defined(FRSKY_HUB)
   for (uint8_t i=0; i<frskyData.hub.cellsCount; i++)
     voltage += frskyData.hub.cellVolts[i];
   voltage /= (10 / TELEMETRY_CELL_VOLTAGE_MUTLIPLIER);
@@ -546,7 +550,8 @@ void telemetryReset()
   frskyData.hub.gpsLatitude_ap = 7710;
   frskyData.hub.gpsLongitude_bp = 1006;
   frskyData.hub.gpsLongitude_ap = 8872;
-  frskyData.hub.gpsSpeed_bp = (100 * 250) / 463;
+  frskyData.hub.gpsSpeed_bp = 200;  //in knots
+  frskyData.hub.gpsSpeed_ap = 0;
   getGpsPilotPosition();
 
   frskyData.hub.gpsLatitude_bp = 4401;
@@ -556,12 +561,19 @@ void telemetryReset()
   getGpsDistance();
 #endif
 
-  frskyData.hub.gpsSpeed_bp = 100;
-  frskyData.hub.gpsSpeed_ap = 50;
-
-  frskyData.hub.airSpeed = 100;
+  frskyData.hub.airSpeed = 1000; // 185.1 km/h
 
   frskyData.hub.cellsCount = 6;
+  frskyData.hub.cellVolts[0] = 410/TELEMETRY_CELL_VOLTAGE_MUTLIPLIER;
+  frskyData.hub.cellVolts[1] = 420/TELEMETRY_CELL_VOLTAGE_MUTLIPLIER;
+  frskyData.hub.cellVolts[2] = 430/TELEMETRY_CELL_VOLTAGE_MUTLIPLIER;
+  frskyData.hub.cellVolts[3] = 440/TELEMETRY_CELL_VOLTAGE_MUTLIPLIER;
+  frskyData.hub.cellVolts[4] = 450/TELEMETRY_CELL_VOLTAGE_MUTLIPLIER;
+  frskyData.hub.cellVolts[5] = 460/TELEMETRY_CELL_VOLTAGE_MUTLIPLIER;
+  frskyData.hub.minCellVolts = 250/TELEMETRY_CELL_VOLTAGE_MUTLIPLIER;
+  frskyData.hub.minCell = 300;    //unit 10mV
+  frskyData.hub.minCells = 220;  //unit 100mV
+  //frskyData.hub.cellsSum = 261;    //calculated from cellVolts[]
 
   frskyData.hub.gpsAltitude_bp = 50;
   frskyData.hub.baroAltitude_bp = 50;
@@ -604,3 +616,89 @@ void telemetryInit(void)
 
   // we don't reset the telemetry here as we would also reset the consumption after model load
 }
+
+#if defined(CPUARM)
+void frskySetCellsCount(uint8_t cellscount)
+{
+  if (cellscount <= DIM(frskyData.hub.cellVolts)) {
+    frskyData.hub.cellsCount = cellscount;
+    frskyData.hub.cellsState = 0;
+    frskyData.hub.minCells = 0;
+    frskyData.hub.minCell = 0;
+  }
+}
+
+void frskySetCellVoltage(uint8_t battnumber, frskyCellVoltage_t cellVolts) 
+{
+  // TRACE("frskySetCellVoltage() %d, %d", battnumber, cellVolts);
+
+  if (battnumber < frskyData.hub.cellsCount) {
+    // set cell voltage
+    if (cellVolts > 50)  // Filter out bogus cell values apparently sent by the FLVSS in some cases
+      frskyData.hub.cellVolts[battnumber] = cellVolts;
+
+    if (cellVolts != 0) {
+      frskyData.hub.cellsState |= (1 << battnumber);
+      if (frskyData.hub.cellsState == (1<<frskyData.hub.cellsCount)-1) {
+        // we received voltage of all cells
+        frskyData.hub.cellsState = 0;
+
+        // calculate Cells, Cells-, Cell and Cell-
+        uint16_t cellsSum = 0; /* unit: 1/10 volts */
+        frskyCellVoltage_t minCellVolts = -1;
+        for (uint8_t i=0; i<frskyData.hub.cellsCount; i++) {
+          frskyCellVoltage_t tmpCellVolts = frskyData.hub.cellVolts[i];
+          cellsSum += tmpCellVolts;
+          if (tmpCellVolts < minCellVolts) {
+            // update minimum cell voltage (Cell)
+            minCellVolts = tmpCellVolts;
+          }
+        }
+
+        frskyData.hub.minCellVolts = minCellVolts;
+        frskyData.hub.cellsSum = cellsSum / (10 / TELEMETRY_CELL_VOLTAGE_MUTLIPLIER);
+
+        // update cells sum minimum (Cells-)
+        if (!frskyData.hub.minCells || frskyData.hub.cellsSum < frskyData.hub.minCells) {
+          frskyData.hub.minCells = frskyData.hub.cellsSum;
+        }
+
+        // update minimum cell voltage (Cell-)
+        if (!frskyData.hub.minCell || frskyData.hub.minCellVolts < frskyData.hub.minCell) {
+          frskyData.hub.minCell = frskyData.hub.minCellVolts;
+        }
+      }
+    }
+  }
+}
+
+void frskyUpdateCells(void) 
+{
+  // Voltage => Cell number + Cell voltage
+  uint8_t battnumber = ((frskyData.hub.volts & 0x00F0) >> 4);
+  if (battnumber >= frskyData.hub.cellsCount) {
+    frskySetCellsCount(battnumber+1);
+  }
+  frskyCellVoltage_t cellVolts = (frskyCellVoltage_t) (((((frskyData.hub.volts & 0xFF00) >> 8) + ((frskyData.hub.volts & 0x000F) << 8))) / (5*TELEMETRY_CELL_VOLTAGE_MUTLIPLIER));
+  frskySetCellVoltage(battnumber, cellVolts);
+}
+#elif defined(FRSKY_HUB)
+void frskyUpdateCells(void)
+{
+  // Voltage => Cell number + Cell voltage
+  uint8_t battnumber = ((frskyData.hub.volts & 0x00F0) >> 4);
+  if (battnumber < 12) {
+    if (frskyData.hub.cellsCount < battnumber+1) {
+      frskyData.hub.cellsCount = battnumber+1;
+    }
+    uint8_t cellVolts = (uint8_t)(((((frskyData.hub.volts & 0xFF00) >> 8) + ((frskyData.hub.volts & 0x000F) << 8))) / 10);
+    frskyData.hub.cellVolts[battnumber] = cellVolts;
+    if (!frskyData.hub.minCellVolts || cellVolts<frskyData.hub.minCellVolts || battnumber==frskyData.hub.minCellIdx) {
+      frskyData.hub.minCellIdx = battnumber;
+      frskyData.hub.minCellVolts = cellVolts;
+      if (!frskyData.hub.minCell || frskyData.hub.minCellVolts<frskyData.hub.minCell)
+        frskyData.hub.minCell = frskyData.hub.minCellVolts;
+    }
+  }
+}
+#endif

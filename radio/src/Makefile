@@ -169,6 +169,10 @@ PPM_LIMITS_SYMETRICAL = NO
 # Values = PERCENT_PREC1, PERCENT_PREC0, US
 PPM_UNIT = PERCENT_PREC1
 
+# SafetyCHxx functions enable
+# Values = YES, NO
+SAFETY_CHANNEL_FUNCTION = YES
+
 # FrSky Hub 
 # Values = YES, NO
 FRSKY_HUB = YES
@@ -278,6 +282,13 @@ MENUS_LOCK = NO
 # MASSSTORAGE: The TX will appear as a drive
 USB = JOYSTICK
 
+# Channel monitor display behaviour
+# Values = NO, YES
+# YES - hide the fact that channel is inverted in limits tab 
+#       and show inverted channel value with oposite sign
+# NO - normal behaviour, show real channel values
+CHANNELS_MONITOR_INV_HIDE = NO
+
 #------- END BUILD OPTIONS ---------------------------
 
 # Define programs and commands.
@@ -285,7 +296,7 @@ SHELL = sh
 IMG2LBM = -python ../util/img2lbm.py
 BIN2LBM = -python ../util/bin2lbm.py
 TRANSLATE = -python ../util/translate.py
-VERSION = 2.0.5
+VERSION = 2.0.6
 
 SRC =
 CPPSRC =
@@ -318,6 +329,7 @@ ifeq ($(PCB), $(filter $(PCB), STD 9X 9XR))
   BOARDSRC = targets/stock/board_stock.cpp
   EXTRABOARDSRC = targets/stock/lcd_driver.cpp targets/common_avr/telemetry_driver.cpp
   EEPROMSRC = eeprom_common.cpp eeprom_rlc.cpp
+  LCDSRC = lcd_common.cpp lcd_default.cpp
   PULSESSRC = pulses/pulses_avr.cpp
 
   ifeq ($(PCB), 9XR)
@@ -381,6 +393,7 @@ ifeq ($(PCB), $(filter $(PCB), STD128 9X128 9XR128))
   BOARDSRC = targets/stock/board_stock.cpp
   EXTRABOARDSRC = targets/stock/lcd_driver.cpp targets/common_avr/telemetry_driver.cpp
   EEPROMSRC = eeprom_common.cpp eeprom_rlc.cpp
+  LCDSRC = lcd_common.cpp lcd_default.cpp
   PULSESSRC = pulses/pulses_avr.cpp
   
   ifeq ($(PCB), 9XR128)
@@ -440,6 +453,7 @@ ifeq ($(PCB), $(filter $(PCB), 9X2561))
   BOARDSRC = targets/stock/board_stock.cpp
   EXTRABOARDSRC = targets/stock/lcd_driver.cpp targets/common_avr/telemetry_driver.cpp
   EEPROMSRC = eeprom_common.cpp eeprom_rlc.cpp
+  LCDSRC = lcd_common.cpp lcd_default.cpp
   PULSESSRC = pulses/pulses_avr.cpp
 
   ifeq ($(PCB), 9XR2561)
@@ -500,6 +514,7 @@ ifeq ($(PCB), GRUVIN9X)
   BOARDSRC = targets/gruvin9x/board_gruvin9x.cpp
   EXTRABOARDSRC = targets/stock/lcd_driver.cpp targets/common_avr/telemetry_driver.cpp
   EEPROMSRC = eeprom_common.cpp eeprom_rlc.cpp
+  LCDSRC = lcd_common.cpp lcd_default.cpp
   PULSESSRC = pulses/pulses_avr.cpp  
   CPPSRC += audio_avr.cpp haptic.cpp
   
@@ -538,6 +553,7 @@ ifeq ($(PCB), MEGA2560)
   BOARDSRC = targets/mega2560/board_mega2560.cpp
   EXTRABOARDSRC = targets/mega2560/lcd_driver_ST7565R.cpp targets/common_avr/telemetry_driver.cpp
   EEPROMSRC = eeprom_common.cpp eeprom_rlc.cpp
+  LCDSRC = lcd_common.cpp lcd_default.cpp
   PULSESSRC = pulses/pulses_avr.cpp  
   CPPSRC += audio_avr.cpp
 
@@ -594,6 +610,7 @@ ifeq ($(PCB), $(filter $(PCB), SKY9X 9XRPRO))
   SRC += targets/sky9x/usb/common/core/USBEndpointDescriptor.c targets/sky9x/usb/common/core/USBGenericRequest.c targets/sky9x/usb/common/core/USBFeatureRequest.c targets/sky9x/usb/common/core/USBInterfaceRequest.c targets/sky9x/usb/common/core/USBGetDescriptorRequest.c targets/sky9x/usb/common/core/USBSetAddressRequest.c targets/sky9x/usb/common/core/USBSetConfigurationRequest.c targets/sky9x/usb/common/core/USBConfigurationDescriptor.c targets/sky9x/usb/common/core/USBGenericDescriptor.c 
   SRC += targets/sky9x/MEDSdcard.c
   EEPROMSRC = eeprom_common.cpp eeprom_raw.cpp eeprom_conversions.cpp
+  LCDSRC = lcd_common.cpp lcd_default.cpp
   PULSESSRC = pulses/pulses_arm.cpp pulses/ppm_arm.cpp pulses/pxx_arm.cpp pulses/dsm2_arm.cpp
   CPPSRC += audio_arm.cpp haptic.cpp gui/view_about.cpp gui/view_text.cpp
   CPPSRC += targets/sky9x/telemetry_driver.cpp targets/sky9x/second_serial_driver.cpp targets/sky9x/pwr_driver.cpp targets/sky9x/adc_driver.cpp targets/sky9x/eeprom_driver.cpp targets/sky9x/pulses_driver.cpp targets/sky9x/keys_driver.cpp targets/sky9x/audio_driver.cpp targets/sky9x/buzzer_driver.cpp targets/sky9x/haptic_driver.cpp targets/sky9x/sdcard_driver.cpp targets/sky9x/massstorage.cpp
@@ -659,10 +676,11 @@ ifeq ($(PCB), TARANIS)
   EXTRAINCDIRS += targets/taranis/STM32_USB-Host-Device_Lib_V2.1.0/Libraries/STM32_USB_OTG_Driver/inc targets/taranis/STM32_USB-Host-Device_Lib_V2.1.0/Libraries/STM32_USB_Device_Library/Core/inc 
   EXTRAINCDIRS += targets/taranis/STM32_USB-Host-Device_Lib_V2.1.0/Libraries/STM32_USB_Device_Library/Class/msc/inc targets/taranis/STM32_USB-Host-Device_Lib_V2.1.0/Libraries/STM32_USB_Device_Library/Class/hid/inc 
   BOARDSRC = targets/taranis/board_taranis.cpp
-  EXTRABOARDSRC += targets/taranis/lcd_driver.cpp targets/taranis/flash_driver.cpp targets/taranis/aspi.c targets/taranis/i2c.c targets/taranis/delays.c 
+  EXTRABOARDSRC += targets/taranis/configure_pins.cpp targets/taranis/lcd_driver.cpp targets/taranis/flash_driver.cpp targets/taranis/aspi.c targets/taranis/i2c.c targets/taranis/delays.c 
   SRC += CoOS/kernel/core.c CoOS/kernel/hook.c CoOS/kernel/task.c CoOS/kernel/event.c CoOS/kernel/time.c CoOS/kernel/timer.c CoOS/kernel/flag.c CoOS/kernel/mutex.c CoOS/kernel/serviceReq.c CoOS/portable/GCC/port.c CoOS/portable/arch.c
   SRC += targets/taranis/pwr_driver.c targets/taranis/usb_driver.c
   EEPROMSRC = eeprom_common.cpp eeprom_rlc.cpp eeprom_conversions.cpp
+  LCDSRC = lcd_common.cpp lcd_taranis.cpp
   PULSESSRC = pulses/pulses_arm.cpp pulses/ppm_arm.cpp pulses/pxx_arm.cpp
   CPPSRC += audio_arm.cpp
   CPPSRC += targets/taranis/pulses_driver.cpp targets/taranis/keys_driver.cpp targets/taranis/adc_driver.cpp targets/taranis/trainer_driver.cpp targets/taranis/audio_driver.cpp targets/taranis/uart3_driver.cpp targets/taranis/telemetry_driver.cpp
@@ -743,7 +761,11 @@ ifeq ($(PCB), TARANIS)
     CPPSRC += haptic.cpp
     CPPSRC += targets/taranis/haptic_driver.cpp
   endif
-  
+
+  ifeq ($(CHANNELS_MONITOR_INV_HIDE), YES)
+    CPPDEFS += -DCHANNELS_MONITOR_INV_HIDE
+  endif
+
 endif
 
 CC      = $(TRGT)gcc
@@ -775,7 +797,7 @@ else
   TTS_SRC = $(shell sh -c "if test -f $(STD_TTS_SRC); then echo $(STD_TTS_SRC); else echo translations/tts_en.cpp; fi")
 endif
 
-CPPSRC += opentx.cpp strhelpers.cpp $(PULSESSRC) switches.cpp curves.cpp mixer.cpp stamp.cpp gui/menus.cpp gui/menu_model.cpp gui/menu_general.cpp gui/view_main.cpp gui/view_statistics.cpp $(EEPROMSRC) lcd.cpp keys.cpp maths.cpp translations.cpp fonts.cpp $(TTS_SRC)
+CPPSRC += opentx.cpp strhelpers.cpp $(PULSESSRC) switches.cpp curves.cpp mixer.cpp stamp.cpp gui/menus.cpp gui/menu_model.cpp gui/menu_general.cpp gui/view_main.cpp gui/view_statistics.cpp $(EEPROMSRC) $(LCDSRC) keys.cpp maths.cpp translations.cpp fonts.cpp $(TTS_SRC)
 
 # Debugging format.
 #     Native formats for AVR-GCC's -g are dwarf-2 [default] or stabs.
@@ -1000,6 +1022,10 @@ ifeq ($(PPM_LIMITS_SYMETRICAL), YES)
   CPPDEFS += -DPPM_LIMITS_SYMETRICAL
 endif
 
+ifeq ($(SAFETY_CHANNEL_FUNCTION), YES)
+  CPPDEFS += -DSAFETY_CHANNEL_FUNCTION
+endif
+
 ifeq ($(PPM_UNIT), US)
   CPPDEFS += -DPPM_UNIT_US
 endif
@@ -1138,7 +1164,6 @@ endif
 # build bootloader
 ifeq ($(PCB), TARANIS)
 bootloader.lbm: bootloader/bootloader_ramBoot.bin
-	test -z "$$(find $^ -size +32k)"
 	$(BIN2LBM) $^ $@
 
 .PHONY bootloader/bootloader_ramBoot.bin:
@@ -1288,8 +1313,8 @@ FOXLIB=-L/usr/local/lib \
        -lFOX-1.6 \
        -Wl,-rpath,$(FOXPATH)/src/.libs
 
-simu: stamp_header $(BOARDSRC) $(CPPSRC) Makefile simu.cpp simpgmspace.cpp simutelemetry.cpp *.h tra lbm eeprom.bin
-	g++ $(CPPFLAGS) $(INCFLAGS) simu.cpp $(BOARDSRC) $(CPPSRC) $(LUASRC) simpgmspace.cpp -MD -DSIMU -O0 -o simu $(FOXINC) $(FOXLIB) -pthread -fexceptions
+simu: stamp_header $(BOARDSRC) $(CPPSRC) Makefile simu.cpp targets/simu/simpgmspace.cpp simutelemetry.cpp *.h tra lbm eeprom.bin
+	g++ $(CPPFLAGS) $(INCFLAGS) simu.cpp $(BOARDSRC) $(CPPSRC) $(LUASRC) targets/simu/simpgmspace.cpp -MD -DSIMU -O0 -o simu $(FOXINC) $(FOXLIB) -pthread -fexceptions
 
 eeprom.bin:
 	dd if=/dev/zero of=$@ bs=1 count=2048
@@ -1361,6 +1386,7 @@ endif
 # Target: clean project.
 clean: begin clean_list end
 
+CLEAN_SRC=$(filter %.c,$(SRC))
 clean_list :
 	@echo
 	@echo $(MSG_CLEANING)
@@ -1376,7 +1402,7 @@ clean_list :
 	$(REMOVE) $(TARGET).sym
 	$(REMOVE) $(TARGET).lss
 	$(REMOVE) $(TARGET).lst
-	$(REMOVE) $(SRC:.c=.s)
+	$(REMOVE) $(CLEAN_SRC:.c=.s)
 	$(REMOVE) `find . -name "*.o"` 
 	$(REMOVE) *.d
 	$(REMOVE) *.lst
@@ -1460,5 +1486,8 @@ gtest_main.a : gtest-all.o gtest_main.o
 # gtest_main.a, depending on whether it defines its own main()
 # function.
 
-gtests: $(BOARDSRC) $(CPPSRC) gtests.cpp simpgmspace.cpp *.h gtest_main.a
-	g++ -std=gnu++0x $(CPPFLAGS) $(BOARDSRC) $(CPPSRC) gtests.cpp simpgmspace.cpp -I$(GTEST_DIR) ${INCFLAGS} -I$(GTEST_DIR)/include -o gtests -lpthread -MD -DSIMU gtest_main.a 
+#use all .cpp files from tests/ dir
+GTEST_TESTS_SRCS = $(shell find tests/ -type f -name '*.cpp')
+
+gtests: $(BOARDSRC) $(CPPSRC) $(GTEST_TESTS_SRCS) targets/simu/simpgmspace.cpp *.h gtest_main.a
+	g++ -std=gnu++0x $(CPPFLAGS) $(BOARDSRC) $(CPPSRC) $(GTEST_TESTS_SRCS) targets/simu/simpgmspace.cpp -I$(GTEST_DIR) ${INCFLAGS} -I$(GTEST_DIR)/include -o gtests -lpthread -MD -DSIMU -lQtCore -lQtGui gtest_main.a 

@@ -280,7 +280,7 @@
 #include "debug.h"
 
 #if defined(SIMU)
-#include "simpgmspace.h"
+#include "targets/simu/simpgmspace.h"
 #elif defined(CPUARM)
 typedef const unsigned char pm_uchar;
 typedef const char pm_char;
@@ -687,6 +687,7 @@ extern uint8_t flightModeTransitionLast;
   extern unsigned char *heap;
   extern int _end;
   extern unsigned char *_estack;
+  #define getAvailableMemory() ((unsigned int)((unsigned char *)&_estack - heap))
 #endif
 
 void evalFlightModeMixes(uint8_t mode, uint8_t tick10ms);
@@ -753,7 +754,12 @@ int8_t  getMovedSwitch();
 
 trim_t getRawTrimValue(uint8_t phase, uint8_t idx);
 int getTrimValue(uint8_t phase, uint8_t idx);
+
+#if defined(PCBTARANIS)
+bool setTrimValue(uint8_t phase, uint8_t idx, int trim);
+#else
 void setTrimValue(uint8_t phase, uint8_t idx, int trim);
+#endif
 
 #if defined(ROTARY_ENCODERS)
   int16_t getRotaryEncoder(uint8_t idx);
@@ -823,7 +829,7 @@ void setTrimValue(uint8_t phase, uint8_t idx, int trim);
   #define GV_RANGELARGE_OFFSET_NEG  GV_RANGELARGE_NEG
 #endif
 
-extern uint16_t s_timeCumTot;
+extern uint16_t sessionTimer;
 extern uint16_t s_timeCumThr;
 extern uint16_t s_timeCum16ThrP;
 
@@ -837,7 +843,9 @@ struct TimerState {
 
 extern TimerState timersStates[MAX_TIMERS];
 
+#if defined(SAFETY_CHANNEL_FUNCTION)
 extern int8_t safetyCh[NUM_CHNOUT];
+#endif
 
 extern uint8_t trimsCheckTimer;
 
@@ -981,7 +989,9 @@ template<class t> FORCEINLINE t min(t a, t b) { return a<b?a:b; }
 template<class t> FORCEINLINE t max(t a, t b) { return a>b?a:b; }
 template<class t> FORCEINLINE t sgn(t a) { return a>0 ? 1 : (a < 0 ? -1 : 0); }
 template<class t> FORCEINLINE t limit(t mi, t x, t ma) { return min(max(mi,x),ma); }
+#if !defined(SWAP_DEFINED)
 template<class t> void swap(t & a, t & b) { t tmp = b; b = a; a = tmp; }
+#endif
 
 #if defined(HELI) || defined(FRSKY_HUB)
 uint16_t isqrt32(uint32_t n);
@@ -1553,7 +1563,7 @@ void checkFlashOnBeep();
 
 #if defined(FRSKY) || defined(CPUARM)
 void convertUnit(getvalue_t & val, uint8_t & unit); // TODO check FORCEINLINE on stock
-void putsTelemetryValue(xcoord_t x, uint8_t y, lcdint_t val, uint8_t unit, uint8_t att);
+void putsTelemetryValue(xcoord_t x, uint8_t y, lcdint_t val, uint8_t unit, LcdFlags att);
 #else
 #define convertUnit(...)
 #endif
@@ -1652,6 +1662,25 @@ extern const pm_uint8_t bchunit_ar[];
 #endif
 
 #define IS_BARS_SCREEN(screenIndex) (g_model.frsky.screensType & (1<<(screenIndex)))
+
+enum FrskyViews {
+  CASE_LUA(TELEMETRY_LUA_SCREEN_1)
+  CASE_LUA(TELEMETRY_LUA_SCREEN_2)
+  CASE_LUA(TELEMETRY_LUA_SCREEN_3)
+  CASE_LUA(TELEMETRY_LUA_SCREEN_4)
+  CASE_LUA(TELEMETRY_LUA_SCREEN_5)
+  CASE_LUA(TELEMETRY_LUA_SCREEN_6)
+  CASE_LUA(TELEMETRY_LUA_SCREEN_7)
+  TELEMETRY_CUSTOM_SCREEN_1,
+  TELEMETRY_CUSTOM_SCREEN_2,
+  CASE_CPUARM(TELEMETRY_CUSTOM_SCREEN_3)
+  TELEMETRY_VOLTAGES_SCREEN,
+  TELEMETRY_AFTER_FLIGHT_SCREEN,
+  FRSKY_VIEW_MAX = TELEMETRY_AFTER_FLIGHT_SCREEN
+};
+
+extern uint8_t s_frsky_view;
+
 #endif
 
 #define EARTH_RADIUSKM ((uint32_t)6371)

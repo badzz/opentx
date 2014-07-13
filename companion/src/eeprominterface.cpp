@@ -186,6 +186,20 @@ RawSourceRange RawSource::getRange(const ModelData & model, const GeneralSetting
           break;
         case TELEMETRY_SOURCE_ASPEED:
         case TELEMETRY_SOURCE_ASPEED_MAX:
+          result.decimals = 1;
+          result.step = singleprec ? 2.0 : 0.1;
+          result.max = singleprec ? (2*255) : 2000;
+          if (firmware->getCapability(Imperial) || settings.imperial) {
+            result.step *= 1.150779;
+            result.max *= 1.150779;
+            result.unit = QObject::tr("mph");
+          }
+          else {
+            result.step *= 1.852;
+            result.max *= 1.852;
+            result.unit = QObject::tr("km/h");
+          }
+          break;
         case TELEMETRY_SOURCE_SPEED:
         case TELEMETRY_SOURCE_SPEED_MAX:
           result.step = singleprec ? 2 : 1;
@@ -698,92 +712,13 @@ QString LogicalSwitchData::toString(const ModelData & model, const GeneralSettin
   return result;
 }
 
-#if 0
-QStringList FuncSwData::toStringList()
+void FuncSwData::clear()
 {
-  QStringList result;
-  QStringList qs;
-
-  result << swtch.toString();
-  result << funcToString();
-
-  if (func < FuncInstantTrim) {
-    result << QString("%1").arg(param);
+  memset(this, 0, sizeof(FuncSwData));
+  if (!GetCurrentFirmware()->getCapability(SafetyChannelCustomFunction)) {
+    func = FuncTrainer;
   }
-  else if (func==FuncPlaySound) {
-    qs <<"Beep 1" << "Beep 2" << "Beep 3" << "Warn1" << "Warn2" << "Cheep" << "Ratata" << "Tick" << "Siren" << "Ring" ;
-    qs << "SciFi" << "Robot" << "Chirp" << "Tada" << "Crickt"  << "AlmClk"  ;
-    if (param>=0 && param<(int)qs.count())
-      result << qs.at(param);
-    else
-      result << QObject::tr("<font color=red><b>Inconsistent parameter</b></font>");
-  }
-  else if (func==FuncPlayHaptic) {
-    qs << "0" << "1" << "2" << "3";
-    if (param>=0 && param<(int)qs.count())
-      result << qs.at(param);
-    else
-      result << QObject::tr("<font color=red><b>Inconsistent parameter</b></font>");
-  }
-  else if (func==FuncReset) {
-    qs.append( QObject::tr("Timer1"));
-    qs.append( QObject::tr("Timer2"));
-    qs.append( QObject::tr("All"));
-    qs.append( QObject::tr("Telemetry"));
-    if (param>=0 && param<(int)qs.count())
-      result << qs.at(param);
-    else
-      result << QObject::tr("<font color=red><b>Inconsistent parameter</b></font>");
-  }
-  else if ((func==FuncVolume)|| (func==FuncPlayValue)) {
-    RawSource item(param);
-    result << item.toString();
-  }
-  else if ((func==FuncPlayPrompt) || (func==FuncPlayBoth)) {
-    if ( GetCurrentFirmware()->getCapability(VoicesAsNumbers)) {
-      result << QString("%1").arg(param);
-    } else {
-      result << paramarm;
-    }
-  }
-  else if ((func>FuncBackgroundMusicPause) && (func<FuncCount)) {
-    switch (adjustMode) {
-      case 0:
-        result << QObject::tr("Value ")+QString("%1").arg(param);
-        break;
-      case 1:
-        result << RawSource(param).toString();
-        break;
-      case 2:
-        result << RawSource(param).toString();
-        break;
-      case 3:
-        if (param==0) {
-          result << QObject::tr("Decr:")+QString(" -1");
-        }
-        else {
-          result << QObject::tr("Incr:")+QString(" +1");
-        }
-        break;
-      default:
-        break;
-    }
-  }
-
-  if (func==FuncPlaySound || func==FuncPlayHaptic || func==FuncPlayValue || func==FuncPlayPrompt || func==FuncPlayBoth || func==FuncBackgroundMusic) {
-              str.append(doTC(QString("%1").arg(g_model->funcSw[i].repeatParam),"green"));
-            } else {
-              str.append(doTC( "&nbsp;","green"));
-            }
-            if ((index<=FuncInstantTrim) || (index>FuncBackgroundMusicPause)) {
-              str.append(doTC((g_model->funcSw[i].enabled ? "ON" : "OFF"),"green"));
-            } else {
-              str.append(doTC( "---","green"));
-            }
-
-  return result;
 }
-#endif
 
 QString FuncSwData::funcToString()
 {
@@ -1201,6 +1136,8 @@ void ModelData::clear()
     expoData[i].clear();
   for (int i=0; i<C9X_NUM_CSW; i++)
     customSw[i].clear();
+  for (int i=0; i<C9X_MAX_CUSTOM_FUNCTIONS; i++)
+    funcSw[i].clear();
   for (int i=0; i<C9X_MAX_CURVES; i++)
     curves[i].clear(5);
   for (int i=0; i<2; i++)

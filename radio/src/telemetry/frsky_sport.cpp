@@ -120,6 +120,15 @@
 #define BATT_ID                 0xf104
 #define SWR_ID                  0xf105
 
+// Default sensor data IDs (Physical IDs + CRC)
+#define DATA_ID_VARIO            0x00 // 0
+#define DATA_ID_FLVSS            0xA1 // 1
+#define DATA_ID_FAS              0x22 // 2
+#define DATA_ID_GPS              0x83 // 3
+#define DATA_ID_RPM              0xE4 // 4
+#define DATA_ID_SP2UH            0x45 // 5
+#define DATA_ID_SP2UR            0xC6 // 6
+
 void setBaroAltitude(int32_t baroAltitude)
 {
   // First received barometer altitude => Altitude offset
@@ -235,34 +244,13 @@ void processHubPacket(uint8_t id, uint16_t value)
 
     case GPS_SPEED_BP_ID:
       // Speed => Max speed
-      frskyData.hub.gpsSpeed_bp = frskyData.hub.gpsSpeed_bp;
       if (frskyData.hub.gpsSpeed_bp > frskyData.hub.maxGpsSpeed)
         frskyData.hub.maxGpsSpeed = frskyData.hub.gpsSpeed_bp;
       break;
 
     case VOLTS_ID:
-    {
-      // Voltage => Cell number + Cell voltage
-      uint8_t battnumber = ((frskyData.hub.volts & 0x00F0) >> 4);
-      if (battnumber < 12) {
-        if (frskyData.hub.cellsCount < battnumber+1) {
-          frskyData.hub.cellsCount = battnumber+1;
-        }
-#if defined(CPUARM)
-        uint16_t cellVolts = (uint16_t)(((((frskyData.hub.volts & 0xFF00) >> 8) + ((frskyData.hub.volts & 0x000F) << 8))) / 5);
-#else
-        uint8_t cellVolts = (uint8_t)(((((frskyData.hub.volts & 0xFF00) >> 8) + ((frskyData.hub.volts & 0x000F) << 8))) / 10);
-#endif
-        frskyData.hub.cellVolts[battnumber] = cellVolts;
-        if (!frskyData.hub.minCellVolts || cellVolts<frskyData.hub.minCellVolts || battnumber==frskyData.hub.minCellIdx) {
-          frskyData.hub.minCellIdx = battnumber;
-          frskyData.hub.minCellVolts = cellVolts;
-          if (!frskyData.hub.minCell || frskyData.hub.minCellVolts<frskyData.hub.minCell)
-            frskyData.hub.minCell = frskyData.hub.minCellVolts;
-        }
-      }
+      frskyUpdateCells();
       break;
-    }
 
     case GPS_HOUR_MIN_ID:
       frskyData.hub.hour = ((uint8_t)(frskyData.hub.hour + g_eeGeneral.timezone + 24)) % 24;
@@ -297,7 +285,7 @@ bool checkSportPacket(uint8_t *packet)
 
 void frskySportProcessPacket(uint8_t *packet)
 {
-  /* uint8_t  dataId = packet[0]; */
+  uint8_t  dataId = packet[0];
   uint8_t  prim   = packet[1];
   uint16_t appId  = *((uint16_t *)(packet+2));
 
@@ -380,16 +368,16 @@ void frskySportProcessPacket(uint8_t *packet)
       }
       else if (appId >= VFAS_FIRST_ID && appId <= VFAS_LAST_ID) {
         frskyData.hub.vfas = SPORT_DATA_U32(packet)/10;   //TODO: remove /10 and display with PREC2 when using SPORT
+        if (!frskyData.hub.minVfas || frskyData.hub.vfas < frskyData.hub.minVfas)
+          frskyData.hub.minVfas = frskyData.hub.vfas;
       }
       else if (appId >= AIR_SPEED_FIRST_ID && appId <= AIR_SPEED_LAST_ID) {
         frskyData.hub.airSpeed = SPORT_DATA_U32(packet);
-        frskyData.hub.airSpeed /= 10;
         if (frskyData.hub.airSpeed > frskyData.hub.maxAirSpeed)
           frskyData.hub.maxAirSpeed = frskyData.hub.airSpeed;
       }
       else if (appId >= GPS_SPEED_FIRST_ID && appId <= GPS_SPEED_LAST_ID) {
-        frskyData.hub.gpsSpeed_bp = SPORT_DATA_U32(packet);
-        frskyData.hub.gpsSpeed_bp /= 1000;
+        frskyData.hub.gpsSpeed_bp = (uint16_t) (SPORT_DATA_U32(packet)/1000);
         if (frskyData.hub.gpsSpeed_bp > frskyData.hub.maxGpsSpeed)
           frskyData.hub.maxGpsSpeed = frskyData.hub.gpsSpeed_bp;
       }
@@ -429,7 +417,7 @@ void frskySportProcessPacket(uint8_t *packet)
         if (frskyData.hub.gpsFix > 0) {
           if (!frskyData.hub.pilotLatitude && !frskyData.hub.pilotLongitude) {
             // First received GPS position => Pilot GPS position
-	    getGpsPilotPosition();
+            getGpsPilotPosition();
           }
           else if (frskyData.hub.gpsDistNeeded || g_menuStack[g_menuStackPtr] == menuTelemetryFrsky) {
             getGpsDistance();
@@ -477,31 +465,30 @@ void frskySportProcessPacket(uint8_t *packet)
         frskyData.analog[TELEM_ANA_A4].set(SPORT_DATA_U32(packet), UNIT_VOLTS);
       }
       else if (appId >= CELLS_FIRST_ID && appId <= CELLS_LAST_ID) {
-        uint32_t cells = SPORT_DATA_U32(packet);
-        uint8_t battnumber = cells & 0xF;
-        uint32_t minCell, minCellNum;
-        
-        //TODO: Use reported total voltages (bits 4-7)?
-        frskyData.hub.cellVolts[battnumber] = ((cells & 0x000FFF00) >> 8) / 5;
-        frskyData.hub.cellVolts[battnumber+1] = ((cells & 0xFFF00000) >> 20) / 5;
-        
-        if (frskyData.hub.cellsCount < battnumber+2)
-          frskyData.hub.cellsCount = battnumber+2;
-        if (frskyData.hub.cellVolts[battnumber+1] == 0)
-          frskyData.hub.cellsCount--;
-        
-        if ((frskyData.hub.cellVolts[battnumber] < frskyData.hub.cellVolts[battnumber+1]) || (frskyData.hub.cellVolts[battnumber+1] == 0)) {
-          minCell = frskyData.hub.cellVolts[battnumber];
-          minCellNum = battnumber;
+        uint32_t data = SPORT_DATA_U32(packet);
+        uint8_t battnumber = data & 0xF;
+        uint8_t cells = (data & 0xF0) >> 4;
+        bool useSecondCell = (battnumber+1 < cells);
+
+        if (dataId == DATA_ID_FLVSS) {
+          // first sensor, remember its cell count
+          frskyData.hub.sensorCellsCount[0] = cells;
+          cells += frskyData.hub.sensorCellsCount[1];
         }
         else {
-          minCell = frskyData.hub.cellVolts[battnumber+1];
-          minCellNum = battnumber+1;
+          // second sensor connected
+          frskyData.hub.sensorCellsCount[1] = cells;
+          cells += frskyData.hub.sensorCellsCount[0];
+          battnumber += frskyData.hub.sensorCellsCount[0];
         }
-        	
-        if (!frskyData.hub.minCellVolts || minCell < frskyData.hub.minCellVolts || minCellNum==frskyData.hub.minCellIdx) {
-          frskyData.hub.minCellIdx = minCellNum;
-          frskyData.hub.minCellVolts = minCell;
+
+        if (cells != frskyData.hub.cellsCount) {
+          frskySetCellsCount(cells);
+        }
+
+        frskySetCellVoltage(battnumber, (frskyCellVoltage_t) ((data & 0x000FFF00) >>  8) / 5);
+        if (useSecondCell) {
+          frskySetCellVoltage(battnumber+1, (frskyCellVoltage_t) ((data & 0xFFF00000) >> 20) / 5);
         }
       }
       break;

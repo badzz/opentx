@@ -245,8 +245,10 @@ int16_t applyLimits(uint8_t channel, int32_t value)
 
   if (lim->revert) ofs = -ofs; // finally do the reverse.
 
+#if defined(SAFETY_CHANNEL_FUNCTION)
   if (safetyCh[channel] != -128) // if safety channel available for channel check
     ofs = calc100toRESX(safetyCh[channel]);
+#endif
 
   return ofs;
 }
@@ -1067,12 +1069,3 @@ void evalMixes(uint8_t tick10ms)
   PORTH &= ~0x40; // PORTH:6 HIGH->LOW signals end of mixer interrupt
 #endif
 }
-
-#if !defined(CPUM64) && !defined(ACCURAT_THROTTLE_TIMER)
-  //  code cost is about 16 bytes for higher throttle accuracy for timer
-  //  would not be noticable anyway, because all version up to this change had only 16 steps;
-  //  now it has already 32  steps; this define would increase to 128 steps
-  #define ACCURAT_THROTTLE_TIMER
-#endif
-
-

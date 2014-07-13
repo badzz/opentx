@@ -241,8 +241,10 @@ bool getLogicalSwitch(uint8_t idx)
 #if defined(FRSKY)
       // Telemetry
       if (v1 >= MIXSRC_FIRST_TELEM) {
-        if ((!TELEMETRY_STREAMING() && v1 >= MIXSRC_FIRST_TELEM+TELEM_FIRST_STREAMED_VALUE-1) || IS_FAI_FORBIDDEN(v1-1))
-          return false;
+        if ((!TELEMETRY_STREAMING() && v1 >= MIXSRC_FIRST_TELEM+TELEM_FIRST_STREAMED_VALUE-1) || IS_FAI_FORBIDDEN(v1-1)) {
+          result = false;
+          goto DurationAndDelayProcessing;
+        }
 
         y = convertLswTelemValue(ls);
 
@@ -331,6 +333,10 @@ bool getLogicalSwitch(uint8_t idx)
       }
     }
   }
+
+#if defined(FRSKY)
+DurationAndDelayProcessing:
+#endif
 
 #if defined(CPUARM)
     if (ls->delay || ls->duration) {
@@ -799,6 +805,12 @@ int16_t lswTimerValue(delayval_t val)
 
 void logicalSwitchesReset()
 {
+#if defined(CPUARM)
+  memset(lswFm, 0, sizeof(lswFm));
+#else
+  s_last_switch_value = 0;
+#endif
+
 #if defined(CPUARM)
   for (uint8_t fm=0; fm<MAX_FLIGHT_MODES; fm++) {
 #endif

@@ -51,7 +51,8 @@ extern "C" {
 #define lua_registerint(L, n, i)       (lua_pushinteger(L, (i)), lua_setglobal(L, (n)))
 #define lua_pushtablenil(L, k)         (lua_pushstring(L, (k)), lua_pushnil(L), lua_settable(L, -3))
 #define lua_pushtableboolean(L, k, v)  (lua_pushstring(L, (k)), lua_pushboolean(L, (v)), lua_settable(L, -3))
-#define lua_pushtablenumber(L, k, v)   (lua_pushstring(L, (k)), lua_pushinteger(L, (v)), lua_settable(L, -3))
+#define lua_pushtableinteger(L, k, v)  (lua_pushstring(L, (k)), lua_pushinteger(L, (v)), lua_settable(L, -3))
+#define lua_pushtablenumber(L, k, v)   (lua_pushstring(L, (k)), lua_pushnumber(L, (v)), lua_settable(L, -3))
 #define lua_pushtablestring(L, k, v)   { char tmp[sizeof(v)+1]; strncpy(tmp, (v), sizeof(v)); tmp[sizeof(v)] = '\0'; lua_pushstring(L, (k)); lua_pushstring(L, tmp); lua_settable(L, -3); }
 #define lua_pushtablezstring(L, k, v)  { char tmp[sizeof(v)+1]; zchar2str(tmp, (v), sizeof(v)); lua_pushstring(L, (k)); lua_pushstring(L, tmp); lua_settable(L, -3); }
 #define lua_registerlib(L, name, tab)  (luaL_newmetatable(L, name), luaL_setfuncs(L, tab, 0), lua_setglobal(L, name))
@@ -146,6 +147,21 @@ static void luaGetValueAndPush(int src)
   }
 }
 
+struct LuaField {
+  const char * name;
+  const uint8_t id;
+  const uint8_t attr;
+};
+
+const LuaField luaFields[] = {
+  { "altitude-max", MIXSRC_FIRST_TELEM+TELEM_MAX_ALT-1, 0 },
+  { "altitude", MIXSRC_FIRST_TELEM+TELEM_ALT-1, PREC2 },
+  { "vario", MIXSRC_FIRST_TELEM+TELEM_VSPEED-1, PREC2 },
+  { "tx-voltage", MIXSRC_FIRST_TELEM+TELEM_TX_VOLTAGE-1, PREC1 },
+  { "rpm", MIXSRC_FIRST_TELEM+TELEM_RPM-1, 0 },
+  { NULL, 0, 0 },
+};
+
 static int luaGetValue(lua_State *L)
 {
   if (lua_isnumber(L, 1)) {
@@ -155,19 +171,19 @@ static int luaGetValue(lua_State *L)
   }
   else {
     const char *what = luaL_checkstring(L, 1);
-    if (!strcmp(what, "altitude-max")) {
-      lua_pushnumber(L, frskyData.hub.maxAltitude);
-      return 1;
+    for (const LuaField * field = &luaFields[0]; field->name; field++) {
+      if (!strcmp(what, field->name)) {
+        getvalue_t value = getValue(field->id);
+        if (field->attr == PREC1)
+          lua_pushnumber(L, double(value)/10);
+        else if (field->attr == PREC2)
+          lua_pushnumber(L, double(value)/100);
+        else
+          lua_pushnumber(L, value);
+        return 1;
+      }
     }
-    else if (!strcmp(what, "altitude")) {
-      lua_pushnumber(L, double(frskyData.hub.baroAltitude)/100);
-      return 1;
-    }
-    else if (!strcmp(what, "vario")) {
-      lua_pushnumber(L, double(frskyData.hub.varioSpeed)/100);
-      return 1;
-    }
-    else if (frskyData.hub.gpsFix) {
+    if (frskyData.hub.gpsFix) {
       if (!strcmp(what, "latitude")) {
         lua_pushnumber(L, gpsToDouble(frskyData.hub.gpsLatitudeNS=='S', frskyData.hub.gpsLatitude_bp, frskyData.hub.gpsLatitude_ap));
         return 1;
@@ -176,11 +192,11 @@ static int luaGetValue(lua_State *L)
         lua_pushnumber(L, gpsToDouble(frskyData.hub.gpsLongitudeEW=='W', frskyData.hub.gpsLongitude_bp, frskyData.hub.gpsLongitude_ap));
         return 1;
       }
-      else if (!strcmp(what, "pilot latitude")) {
+      else if (!strcmp(what, "pilot-latitude")) {
         lua_pushnumber(L, pilotLatitude);
         return 1;
       }
-      else if (!strcmp(what, "pilot longitude")) {
+      else if (!strcmp(what, "pilot-longitude")) {
         lua_pushnumber(L, pilotLongitude);
         return 1;
       }
@@ -210,6 +226,14 @@ static int luaKillEvents(lua_State *L)
   int event = luaL_checkinteger(L, 1);
   killEvents(event);
   return 0;
+}
+
+static int luaGetGeneralSettings(lua_State *L)
+{
+  lua_newtable(L);
+  lua_pushtablenumber(L, "battMin", double(90+g_eeGeneral.vBatMin)/10);
+  lua_pushtablenumber(L, "battMax", double(120+g_eeGeneral.vBatMax)/10);
+  return 1;
 }
 
 static int luaLcdLock(lua_State *L)
@@ -244,6 +268,12 @@ static int luaLcdDrawLine(lua_State *L)
   return 0;
 }
 
+static int luaLcdGetLastPos(lua_State *L)
+{
+  lua_pushinteger(L, lcdLastPos);
+  return 1;
+}
+
 static int luaLcdDrawText(lua_State *L)
 {
   int x = luaL_checkinteger(L, 1);
@@ -271,6 +301,29 @@ static int luaLcdDrawNumber(lua_State *L)
   int n = luaL_checkinteger(L, 3);
   int att = luaL_checkinteger(L, 4);
   lcd_outdezAtt(x, y, n, att);
+  return 0;
+}
+
+static int luaLcdDrawChannel(lua_State *L)
+{
+  int x = luaL_checkinteger(L, 1);
+  int y = luaL_checkinteger(L, 2);
+  int channel = -1;
+  if (lua_isnumber(L, 3)) {
+    channel = luaL_checkinteger(L, 3);
+  }
+  else {
+    const char *what = luaL_checkstring(L, 3);
+    for (const LuaField * field = &luaFields[0]; field->name; field++) {
+      if (!strcmp(what, field->name)) {
+        channel = field->id;
+        break;
+      }
+    }
+  }
+  int att = luaL_checkinteger(L, 4);
+  getvalue_t value = getValue(channel);
+  putsTelemetryChannel(x, y, channel-MIXSRC_FIRST_TELEM, value, att);
   return 0;
 }
 
@@ -328,7 +381,6 @@ static int luaLcdDrawFilledRectangle(lua_State *L)
   return 0;
 }
 
-#if 0
 static int luaLcdDrawGauge(lua_State *L)
 {
   int x = luaL_checkinteger(L, 1);
@@ -337,7 +389,7 @@ static int luaLcdDrawGauge(lua_State *L)
   int h = luaL_checkinteger(L, 4);
   int num = luaL_checkinteger(L, 5);
   int den = luaL_checkinteger(L, 6);
-  int flags = luaL_checkinteger(L, 7);
+  // int flags = luaL_checkinteger(L, 7);
   lcd_rect(x, y, w, h);
   uint8_t len = limit((uint8_t)1, uint8_t(w*num/den), uint8_t(w));
   for (int i=1; i<h-1; i++) {
@@ -345,7 +397,6 @@ static int luaLcdDrawGauge(lua_State *L)
   }
   return 0;
 }
-#endif
 
 static int luaLcdDrawScreenTitle(lua_State *L)
 {
@@ -407,16 +458,44 @@ static int luaLcdDrawCombobox(lua_State *L)
   return 0;
 }
 
+static int luaModelGetInfo(lua_State *L)
+{
+  lua_newtable(L);
+  lua_pushtablezstring(L, "name", g_model.header.name);
+  lua_pushtableinteger(L, "id", g_model.header.modelId);
+  return 1;
+}
+
+static int luaModelSetInfo(lua_State *L)
+{
+  luaL_checktype(L, -1, LUA_TTABLE);
+  for (lua_pushnil(L); lua_next(L, -2); lua_pop(L, 1)) {
+    luaL_checktype(L, -2, LUA_TSTRING); // key is string
+    const char * key = luaL_checkstring(L, -2);
+    if (!strcmp(key, "name")) {
+      const char * name = luaL_checkstring(L, -1);
+      str2zchar(g_model.header.name, name, sizeof(g_model.header.name));
+      memcpy(modelHeaders[g_eeGeneral.currModel].name, g_model.header.name, sizeof(g_model.header.name));
+    }
+    else if (!strcmp(key, "id")) {
+      g_model.header.modelId = luaL_checkinteger(L, -1);
+      modelHeaders[g_eeGeneral.currModel].modelId = g_model.header.modelId;
+    }
+  }
+  eeDirty(EE_MODEL);
+  return 0;
+}
+
 static int luaModelGetTimer(lua_State *L)
 {
   int idx = luaL_checkunsigned(L, 1);
   if (idx < MAX_TIMERS) {
     TimerData & timer = g_model.timers[idx];
     lua_newtable(L);
-    lua_pushtablenumber(L, "mode", timer.mode);
-    lua_pushtablenumber(L, "start", timer.start);
-    lua_pushtablenumber(L, "value", timersStates[idx].val);
-    lua_pushtablenumber(L, "countdownBeep", timer.countdownBeep);
+    lua_pushtableinteger(L, "mode", timer.mode);
+    lua_pushtableinteger(L, "start", timer.start);
+    lua_pushtableinteger(L, "value", timersStates[idx].val);
+    lua_pushtableinteger(L, "countdownBeep", timer.countdownBeep);
     lua_pushtableboolean(L, "minuteBeep", timer.minuteBeep);
     lua_pushtableboolean(L, "persistent", timer.persistent);
   }
@@ -509,9 +588,9 @@ static int luaModelGetInput(lua_State *L)
     ExpoData * expo = expoAddress(first+idx);
     lua_newtable(L);
     lua_pushtablezstring(L, "name", expo->name);
-    lua_pushtablenumber(L, "source", expo->srcRaw);
-    lua_pushtablenumber(L, "weight", expo->weight);
-    lua_pushtablenumber(L, "offset", expo->offset);
+    lua_pushtableinteger(L, "source", expo->srcRaw);
+    lua_pushtableinteger(L, "weight", expo->weight);
+    lua_pushtableinteger(L, "offset", expo->offset);
   }
   else {
     lua_pushnil(L);
@@ -633,11 +712,11 @@ static int luaModelGetMix(lua_State *L)
     MixData * mix = mixAddress(first+idx);
     lua_newtable(L);
     lua_pushtablezstring(L, "name", mix->name);
-    lua_pushtablenumber(L, "source", mix->srcRaw);
-    lua_pushtablenumber(L, "weight", mix->weight);
-    lua_pushtablenumber(L, "offset", mix->offset);
-    lua_pushtablenumber(L, "switch", mix->swtch);
-    lua_pushtablenumber(L, "multiplex", mix->mltpx);
+    lua_pushtableinteger(L, "source", mix->srcRaw);
+    lua_pushtableinteger(L, "weight", mix->weight);
+    lua_pushtableinteger(L, "offset", mix->offset);
+    lua_pushtableinteger(L, "switch", mix->swtch);
+    lua_pushtableinteger(L, "multiplex", mix->mltpx);
   }
   else {
     lua_pushnil(L);
@@ -714,13 +793,13 @@ static int luaModelGetLogicalSwitch(lua_State *L)
   if (idx < NUM_LOGICAL_SWITCH) {
     LogicalSwitchData * sw = lswAddress(idx);
     lua_newtable(L);
-    lua_pushtablenumber(L, "func", sw->func);
-    lua_pushtablenumber(L, "v1", sw->v1);
-    lua_pushtablenumber(L, "v2", sw->v2);
-    lua_pushtablenumber(L, "v3", sw->v3);
-    lua_pushtablenumber(L, "and", sw->andsw);
-    lua_pushtablenumber(L, "delay", sw->delay);
-    lua_pushtablenumber(L, "duration", sw->duration);
+    lua_pushtableinteger(L, "func", sw->func);
+    lua_pushtableinteger(L, "v1", sw->v1);
+    lua_pushtableinteger(L, "v2", sw->v2);
+    lua_pushtableinteger(L, "v3", sw->v3);
+    lua_pushtableinteger(L, "and", sw->andsw);
+    lua_pushtableinteger(L, "delay", sw->delay);
+    lua_pushtableinteger(L, "duration", sw->duration);
   }
   else {
     lua_pushnil(L);
@@ -760,6 +839,7 @@ static int luaModelSetLogicalSwitch(lua_State *L)
         sw->duration = luaL_checkinteger(L, -1);
       }
     }
+    eeDirty(EE_MODEL);
   }
 
   return 0;
@@ -771,17 +851,17 @@ static int luaModelGetCustomFunction(lua_State *L)
   if (idx < NUM_CFN) {
     CustomFnData * cfn = &g_model.funcSw[idx];
     lua_newtable(L);
-    lua_pushtablenumber(L, "switch", CFN_SWITCH(cfn));
-    lua_pushtablenumber(L, "func", CFN_FUNC(cfn));
+    lua_pushtableinteger(L, "switch", CFN_SWITCH(cfn));
+    lua_pushtableinteger(L, "func", CFN_FUNC(cfn));
     if (CFN_FUNC(cfn) == FUNC_PLAY_TRACK || CFN_FUNC(cfn) == FUNC_BACKGND_MUSIC || CFN_FUNC(cfn) == FUNC_PLAY_SCRIPT) {
       lua_pushtablestring(L, "name", cfn->play.name);
     }
     else {
-      lua_pushtablenumber(L, "value", cfn->all.val);
-      lua_pushtablenumber(L, "mode", cfn->all.mode);
-      lua_pushtablenumber(L, "param", cfn->all.param);
+      lua_pushtableinteger(L, "value", cfn->all.val);
+      lua_pushtableinteger(L, "mode", cfn->all.mode);
+      lua_pushtableinteger(L, "param", cfn->all.param);
     }
-    lua_pushtablenumber(L, "active", CFN_ACTIVE(cfn));
+    lua_pushtableinteger(L, "active", CFN_ACTIVE(cfn));
   }
   else {
     lua_pushnil(L);
@@ -822,6 +902,7 @@ static int luaModelSetCustomFunction(lua_State *L)
         CFN_ACTIVE(cfn) = luaL_checkinteger(L, -1);
       }
     }
+    eeDirty(EE_MODEL);
   }
 
   return 0;
@@ -834,14 +915,14 @@ static int luaModelGetOutput(lua_State *L)
     LimitData * limit = limitAddress(idx);
     lua_newtable(L);
     lua_pushtablezstring(L, "name", limit->name);
-    lua_pushtablenumber(L, "min", limit->min-1000);
-    lua_pushtablenumber(L, "max", limit->max+1000);
-    lua_pushtablenumber(L, "offset", limit->offset);
-    lua_pushtablenumber(L, "ppmCenter", limit->ppmCenter);
-    lua_pushtablenumber(L, "symetrical", limit->symetrical);
-    lua_pushtablenumber(L, "revert", limit->revert);
+    lua_pushtableinteger(L, "min", limit->min-1000);
+    lua_pushtableinteger(L, "max", limit->max+1000);
+    lua_pushtableinteger(L, "offset", limit->offset);
+    lua_pushtableinteger(L, "ppmCenter", limit->ppmCenter);
+    lua_pushtableinteger(L, "symetrical", limit->symetrical);
+    lua_pushtableinteger(L, "revert", limit->revert);
     if (limit->curve)
-      lua_pushtablenumber(L, "curve", limit->curve-1);
+      lua_pushtableinteger(L, "curve", limit->curve-1);
     else
       lua_pushtablenil(L, "curve");
   }
@@ -889,6 +970,7 @@ static int luaModelSetOutput(lua_State *L)
           limit->curve = luaL_checkinteger(L, -1) + 1;
       }
     }
+    eeDirty(EE_MODEL);
   }
 
   return 0;
@@ -912,6 +994,7 @@ static int luaModelSetGlobalVariable(lua_State *L)
   int value = luaL_checkinteger(L, 3);
   if (phase < MAX_FLIGHT_MODES && idx < MAX_GVARS && value >= -GVAR_LIMIT && value <= GVAR_LIMIT) {
     g_model.flightModeData[phase].gvars[idx] = value;
+    eeDirty(EE_MODEL);
   }
   return 0;
 }
@@ -1032,6 +1115,8 @@ int luaGetOutputs(ScriptInputsOutputs & sid)
 }
 
 static const luaL_Reg modelLib[] = {
+  { "getInfo", luaModelGetInfo },
+  { "setInfo", luaModelSetInfo },
   { "getTimer", luaModelGetTimer },
   { "setTimer", luaModelSetTimer },
   { "getInputsCount", luaModelGetInputsCount },
@@ -1059,14 +1144,16 @@ static const luaL_Reg modelLib[] = {
 static const luaL_Reg lcdLib[] = {
   { "lock", luaLcdLock },
   { "clear", luaLcdClear },
+  { "getLastPos", luaLcdGetLastPos },
   { "drawPoint", luaLcdDrawPoint },
   { "drawLine", luaLcdDrawLine },
   { "drawRectangle", luaLcdDrawRectangle },
   { "drawFilledRectangle", luaLcdDrawFilledRectangle },
-  // { "drawGauge", luaLcdDrawGauge },
+  { "drawGauge", luaLcdDrawGauge },
   { "drawText", luaLcdDrawText },
   { "drawTimer", luaLcdDrawTimer },
   { "drawNumber", luaLcdDrawNumber },
+  { "drawChannel", luaLcdDrawChannel },
   { "drawSwitch", luaLcdDrawSwitch },
   { "drawSource", luaLcdDrawSource },
   { "drawPixmap", luaLcdDrawPixmap },
@@ -1093,6 +1180,7 @@ void luaInit()
   // Push OpenTX functions
   lua_register(L, "getTime", luaGetTime);
   lua_register(L, "getVersion", luaGetVersion);
+  lua_register(L, "getGeneralSettings", luaGetGeneralSettings);
   lua_register(L, "getValue", luaGetValue);
   lua_register(L, "playFile", luaPlayFile);
   lua_register(L, "playNumber", luaPlayNumber);
@@ -1103,11 +1191,14 @@ void luaInit()
 
   // Push OpenTX constants
   lua_registerint(L, "FULLSCALE", RESX);
+  lua_registerint(L, "XXLSIZE", XXLSIZE);
   lua_registerint(L, "DBLSIZE", DBLSIZE);
   lua_registerint(L, "MIDSIZE", MIDSIZE);
   lua_registerint(L, "SMLSIZE", SMLSIZE);
   lua_registerint(L, "INVERS", INVERS);
+  lua_registerint(L, "LEFT", LEFT);
   lua_registerint(L, "PREC1", PREC1);
+  lua_registerint(L, "PREC2", PREC2);
   lua_registerint(L, "BLINK", BLINK);
   lua_registerint(L, "VALUE", 0);
   lua_registerint(L, "SOURCE", 1);
@@ -1123,6 +1214,8 @@ void luaInit()
   lua_registerint(L, "MIXSRC_SD", MIXSRC_SD);
   lua_registerint(L, "MIXSRC_SE", MIXSRC_SE);
   lua_registerint(L, "MIXSRC_SF", MIXSRC_SF);
+  lua_registerint(L, "MIXSRC_SG", MIXSRC_SG);
+  lua_registerint(L, "MIXSRC_SH", MIXSRC_SH);
   lua_registerint(L, "MIXSRC_CH1", MIXSRC_CH1);
   lua_registerint(L, "SWSRC_LAST", SWSRC_LAST_LOGICAL_SWITCH);
   lua_registerint(L, "EVT_MENU_BREAK", EVT_KEY_BREAK(KEY_MENU));
@@ -1258,8 +1351,16 @@ void getTelemetryScriptPath(char * path, uint8_t index)
 {
   strcpy(path, SCRIPTS_PATH "/");
   char * curs = strcat_modelname(path+sizeof(SCRIPTS_PATH), g_eeGeneral.currModel);
-  strcpy(curs, "/telemX.lua");
-  curs[6] = '0' + index;
+  if (index == TELEMETRY_VOLTAGES_SCREEN) {
+    strcpy(curs, "/telempw.lua");
+  }
+  else if (index == TELEMETRY_AFTER_FLIGHT_SCREEN) {
+    strcpy(curs, "/telemaf.lua");
+  }
+  else {
+    strcpy(curs, "/telemX.lua");
+    curs[6] = '1' + index;
+  }
 }
 
 bool luaLoadTelemetryScript(uint8_t index)
@@ -1284,7 +1385,7 @@ bool isTelemetryScriptAvailable(uint8_t index)
 {
   for (int i=0; i<luaScriptsCount; i++) {
     ScriptInternalData & sid = scriptInternalData[i];
-    if (sid.reference == SCRIPT_TELEMETRY_FIRST+index+1) {
+    if (sid.reference == SCRIPT_TELEMETRY_FIRST+index) {
       return true;
     }
   }
@@ -1305,17 +1406,25 @@ void luaLoadPermanentScripts()
   // Load custom function scripts
   for (int i=0; i<NUM_CFN; i++) {
     if (!luaLoadFunctionScript(i)) {
-      POPUP_WARNING("Too many Lua scripts!"); // TODO translation
-      break;
+      POPUP_WARNING(STR_TOO_MANY_LUA_SCRIPTS);
+      return;
     }
   }
 
-  // Load telemetry scripts
-  for (int i=0; i<MAX_SCRIPTS+1; i++) {
+  // Load custom telemetry scripts
+  for (int i=0; i<MAX_SCRIPTS; i++) {
     if (!luaLoadTelemetryScript(i)) {
-      POPUP_WARNING("Too many Lua scripts!"); // TODO translation
-      break;
+      POPUP_WARNING(STR_TOO_MANY_LUA_SCRIPTS);
+      return;
     }
+  }
+  if (!luaLoadTelemetryScript(TELEMETRY_VOLTAGES_SCREEN)) {
+    POPUP_WARNING(STR_TOO_MANY_LUA_SCRIPTS);
+    return;
+  }
+  if (!luaLoadTelemetryScript(TELEMETRY_AFTER_FLIGHT_SCREEN)) {
+    POPUP_WARNING(STR_TOO_MANY_LUA_SCRIPTS);
+    return;
   }
 }
 
@@ -1369,8 +1478,6 @@ void luaExec(const char *filename)
     luaError(result);
   }
 }
-
-extern uint8_t s_frsky_view;
 
 void luaTask(uint8_t evt)
 {
@@ -1497,13 +1604,16 @@ void luaTask(uint8_t evt)
 #if defined(SIMU) || defined(DEBUG)
           filename = "[telem]";
 #endif
-          if (g_menuStack[0]==menuTelemetryFrsky && sid.reference==SCRIPT_TELEMETRY_FIRST+s_frsky_view+1) {
+          if (g_menuStack[0]==menuTelemetryFrsky && sid.reference==SCRIPT_TELEMETRY_FIRST+s_frsky_view) {
             lua_rawgeti(L, LUA_REGISTRYINDEX, sid.run);
             lua_pushinteger(L, evt);
             inputsCount = 1;
           }
           else if (sid.background) {
             lua_rawgeti(L, LUA_REGISTRYINDEX, sid.background);
+          }
+          else {
+            continue;
           }
         }
         if (lua_pcall(L, inputsCount, sio ? sio->outputsCount : 0, 0) == 0) {

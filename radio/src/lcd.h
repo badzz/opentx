@@ -57,16 +57,18 @@
 
 #if defined(CPUARM)
   #define lcdint_t      int32_t
+  #define lcduint_t     uint32_t
 #else
   #define lcdint_t      int16_t
+  #define lcduint_t     uint16_t
 #endif
 
 #define FW              6
 #define FWNUM           5
 #define FH              8
 
-#define LCD_LINES     (LCD_H/FH)
-#define LCD_COLS      (LCD_W/FW)
+#define LCD_LINES       (LCD_H/FH)
+#define LCD_COLS        (LCD_W/FW)
 
 /* lcd common flags */
 #define BLINK           0x01
@@ -75,9 +77,9 @@
 #define INVERS          0x02
 #define DBLSIZE         0x04
 #ifdef BOLD_FONT
-  #define BOLD            0x40
+  #define BOLD          0x40
 #else
-  #define BOLD            0x00
+  #define BOLD          0x00
 #endif
 
 /* lcd putc flags */
@@ -112,12 +114,12 @@
   #define MIDSIZE       0x0100
   #define SMLSIZE       0x0200
   #define TINSIZE       0x0400
-  #define STREXPANDED   0x0800
+  #define XXLSIZE       0x0800
 #else
   #define MIDSIZE       DBLSIZE
   #define SMLSIZE       0x00
   #define TINSIZE       0x00
-  #define STREXPANDED   0x00
+  #define XXLSIZE       0x00
 #endif
 
 #if defined(PCBTARANIS)
@@ -127,8 +129,11 @@
 #endif
 
 #if defined(CPUARM)
-  #define TIMEBLINK     0x10000
-  #define TIMEHOUR      0x20000
+  #define TIMEBLINK     0x010000
+  #define TIMEHOUR      0x020000
+  #define STREXPANDED   0x040000
+#else
+  #define STREXPANDED   0x00
 #endif
 
 #if defined(CPUARM)
@@ -140,14 +145,17 @@
 #define DISPLAY_PLAN_SIZE  (LCD_W*((LCD_H+7)/8))
 
 #if defined(PCBTARANIS)
-#define DISPLAY_BUF_SIZE   (4*DISPLAY_PLAN_SIZE)
+  #define DISPLAY_BUF_SIZE   (4*DISPLAY_PLAN_SIZE)
 #else
-#define DISPLAY_BUF_SIZE   DISPLAY_PLAN_SIZE
+  #define DISPLAY_BUF_SIZE   DISPLAY_PLAN_SIZE
 #endif
 
 extern uint8_t displayBuf[DISPLAY_BUF_SIZE];
 extern uint8_t lcdLastPos;
 extern uint8_t lcdNextPos;
+
+#define DISPLAY_END          (displayBuf + DISPLAY_BUF_SIZE)
+#define ASSERT_IN_DISPLAY(p) assert((p) >= displayBuf && (p) < DISPLAY_END)
 
 #if defined(PCBSTD) && defined(VOICE)
   extern volatile uint8_t LcdLock ;
@@ -199,7 +207,7 @@ void putsChnLetter(xcoord_t x, uint8_t y, uint8_t idx, LcdFlags attr);
 
 void putsVolts(xcoord_t x, uint8_t y, uint16_t volts, LcdFlags att);
 void putsVBat(xcoord_t x, uint8_t y, LcdFlags att);
-void putsTelemetryChannel(xcoord_t x, uint8_t y, uint8_t channel, lcdint_t val, uint8_t att=0);
+void putsTelemetryChannel(xcoord_t x, uint8_t y, uint8_t channel, lcdint_t val, LcdFlags att=0);
 
 #if defined(CPUARM)
   #define putstime_t int32_t
@@ -258,7 +266,14 @@ void lcdSetRefVolt(unsigned char val);
 void lcdInit();
 void lcd_clear();
 void lcdSetContrast();
-void lcdRefresh();
+
+#if defined(PCBTARANIS) && defined(REVPLUS) && !defined(SIMU)
+  void lcdRefresh(bool wait=true);
+  #define LCD_REFRESH_DONT_WAIT false
+#else
+  void lcdRefresh();
+  #define LCD_REFRESH_DONT_WAIT
+#endif
 
 #if defined(PCBTARANIS)
   const pm_char * bmpLoad(uint8_t *dest, const char *filename, const xcoord_t width, const uint8_t height);
@@ -280,24 +295,6 @@ void lcdRefresh();
   #define LCD_LOCKED() lcd_locked
 #else
   #define LCD_LOCKED() 0
-#endif
-
-#define LCD_BYTE_FILTER_PLAN(p, keep, add) *(p) = (*(p) & (keep)) | (add)
-
-#if defined(PCBTARANIS)
-#define LCD_BYTE_FILTER(p, keep, add) \
-  do { \
-    if (!(flags & GREY(1))) \
-      LCD_BYTE_FILTER_PLAN(p, keep, add); \
-    if (!(flags & GREY(2))) \
-      LCD_BYTE_FILTER_PLAN((p+DISPLAY_PLAN_SIZE), keep, add); \
-    if (!(flags & GREY(4))) \
-      LCD_BYTE_FILTER_PLAN((p+2*DISPLAY_PLAN_SIZE), keep, add); \
-    if (!(flags & GREY(8))) \
-      LCD_BYTE_FILTER_PLAN((p+3*DISPLAY_PLAN_SIZE), keep, add); \
-  } while (0)
-#else
-#define LCD_BYTE_FILTER(p, keep, add) LCD_BYTE_FILTER_PLAN(p, keep, add)
 #endif
 
 char * strAppend(char * dest, const char * source);
