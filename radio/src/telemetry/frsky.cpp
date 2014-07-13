@@ -153,9 +153,11 @@ extern uint8_t TrotCount;
 extern uint8_t TezRotary;
 #endif
 
+ uint8_t dataState = STATE_DATA_IDLE;
+
 NOINLINE void processSerialData(uint8_t data)
 {
-  static uint8_t dataState = STATE_DATA_IDLE;
+//  static uint8_t dataState = STATE_DATA_IDLE;
 
 #if defined(BLUETOOTH)
   // TODO if (g_model.bt_telemetry)
@@ -167,7 +169,6 @@ NOINLINE void processSerialData(uint8_t data)
       uart3Putc(data);
     }
 #endif
-
   switch (dataState)
   {
     case STATE_DATA_START:
@@ -178,9 +179,10 @@ NOINLINE void processSerialData(uint8_t data)
         }
       }
       else {
-        if (frskyRxBufferCount < FRSKY_RX_PACKET_SIZE) {
+	if (frskyRxBufferCount < FRSKY_RX_PACKET_SIZE) {
           frskyRxBuffer[frskyRxBufferCount++] = data;
-        }
+	  //	  fprintf (stdout,"%#04x ",data);
+	}
         dataState = STATE_DATA_IN_FRAME;
       }
       break;
@@ -524,7 +526,7 @@ void telemetryReset()
   frskyData.hub.gpsFix = -1;
 #endif
 
-#if defined(SIMU)
+#if !defined(SIMU)
 
 #if defined(CPUARM)
   frskyData.swr.value = 30;
@@ -593,6 +595,7 @@ void telemetryReset()
 void telemetryInit(void)
 {
 #if defined(CPUARM)
+#if !defined(SIMU) 
   if (telemetryProtocol == PROTOCOL_FRSKY_D) {
     telemetryPortInit(FRSKY_D_BAUDRATE);
   }
@@ -603,6 +606,10 @@ void telemetryInit(void)
   else {
     telemetryPortInit(FRSKY_SPORT_BAUDRATE);
   }
+#elif defined (PCBTARANIS) //SIMU 
+  simuTelemetryInit();
+#endif
+
 #elif !defined(SIMU)
   telemetryPortInit();
 #endif

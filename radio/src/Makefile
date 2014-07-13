@@ -1313,7 +1313,7 @@ FOXLIB=-L/usr/local/lib \
        -lFOX-1.6 \
        -Wl,-rpath,$(FOXPATH)/src/.libs
 
-simu: stamp_header $(BOARDSRC) $(CPPSRC) Makefile simu.cpp targets/simu/simpgmspace.cpp *.h tra lbm eeprom.bin
+simu: stamp_header $(BOARDSRC) $(CPPSRC) Makefile simu.cpp targets/simu/simpgmspace.cpp simutelemetry.cpp *.h tra lbm eeprom.bin
 	g++ $(CPPFLAGS) $(INCFLAGS) simu.cpp $(BOARDSRC) $(CPPSRC) $(LUASRC) targets/simu/simpgmspace.cpp -MD -DSIMU -O0 -o simu $(FOXINC) $(FOXLIB) -pthread -fexceptions
 
 eeprom.bin:

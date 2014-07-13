@@ -180,10 +180,14 @@ void parseTelemHubByte(uint8_t byte)
       break;
 
     case offsetof(FrskySerialData, baroAltitude_bp):
+      fprintf (stdout,"baroAltitude_bp\n");
       // First received barometer altitude => Altitude offset
       if (!frskyData.hub.baroAltitudeOffset)
         frskyData.hub.baroAltitudeOffset = -frskyData.hub.baroAltitude_bp;
       frskyData.hub.baroAltitude_bp += frskyData.hub.baroAltitudeOffset;
+      fprintf (stdout," h %d ", frskyData.hub.baroAltitude_bp);
+      fprintf (stdout," l %u ", frskyData.hub.baroAltitude_ap);
+      //      fprintf (stdout," l %u ", frskyData.hub.baroAltitude);
       checkMinMaxAltitude();
       break;
 
@@ -227,6 +231,7 @@ void parseTelemHubByte(uint8_t byte)
     case offsetof(FrskySerialData, accelX):
     case offsetof(FrskySerialData, accelY):
     case offsetof(FrskySerialData, accelZ):
+
       *(int16_t*)(&((uint8_t*)&frskyData.hub)[structPos]) /= 10;
       break;
 
@@ -277,6 +282,7 @@ void parseTelemWSHowHighByte(uint8_t byte)
 
 void frskyDProcessPacket(uint8_t *packet)
 {
+  fprintf (stdout," frskyDProcessPacket ");
   // What type of packet?
   switch (packet[0])
   {
@@ -298,6 +304,7 @@ void frskyDProcessPacket(uint8_t *packet)
 #if defined(FRSKY_HUB) || defined (WS_HOW_HIGH)
     case USRPKT: // User Data packet
       uint8_t numBytes = 3 + (packet[1] & 0x07); // sanitize in case of data corruption leading to buffer overflow
+      fprintf (stdout," nb byte : %d \n" ,numBytes);
       for (uint8_t i=3; i<numBytes; i++) {
 #if defined(FRSKY_HUB)
         if (IS_USR_PROTO_FRSKY_HUB())
