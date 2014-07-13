@@ -161,6 +161,10 @@ void processHubPacket(uint8_t id, uint16_t value)
   }
 
   ((uint16_t*)&frskyData.hub)[id] = value;
+  if ((id == BARO_ALT_BP_ID) && (frskyData.hub.baroAltitude_bp > 500)){
+    fprintf (stdout," baroAltitude bp error %#04x %#04x\n",  frskyData.hub.baroAltitude_bp, value);
+    fprintf (stdout," baroAltitude ap error %#04x\n",  frskyData.hub.baroAltitude_ap);
+  }
 
   switch (id) {
 
@@ -297,10 +301,9 @@ void frskySportProcessPacket(uint8_t *packet)
   uint8_t  prim   = packet[1];
   uint16_t appId  = *((uint16_t *)(packet+2));
 
-  if (!checkSportPacket(packet)) {
+  /*  if (!checkSportPacket(packet)) {
     return;
-  }
-
+    }*/
   switch (prim)
   {
     case DATA_FRAME:
